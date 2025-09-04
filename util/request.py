@@ -25,4 +25,5 @@ def test1():
 
 
 if __name__ == '__main__':
+    print("i am cloned correctly")
     test1()

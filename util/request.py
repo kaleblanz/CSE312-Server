@@ -22,11 +22,11 @@ class Request:
         #all the request headers, deletes the request line 
         request_headers_reqLine.pop(0)
         request_headers = request_headers_reqLine
-        print(f"request headers: {request_headers}")
+        #print(f"request headers: {request_headers}")
 
         #split the 2 spaces in request line
         method,path,http_v = request_line.split(' ')
-        print(f"method: {(method)}    path: {(path)}    http: {(http_v)}")
+        #print(f"method: {(method)}    path: {(path)}    http: {(http_v)}")
 
 
         self.body = request_bytes_split[1]
@@ -36,7 +36,27 @@ class Request:
         self.headers = {}
         self.cookies = {}
 
-#need to test for Content-Type: text/html; charset=utf-8
+        #pasrse the headers
+        for request_header in request_headers:
+            #only split the : one time (for localhost and etc)
+            #print(f" splits {request_header.split(':',maxsplit=1)}")
+
+            header,value = request_header.split(':',maxsplit=1)
+            if header == "Cookie":
+                value = value.lstrip().rstrip()
+                self.headers[header] = value
+                #print(f"value for cookie: {value}")
+                value_split = value.split(";")
+                #print(f"valuesplits: {value_split}")
+                for value_header in value_split:
+                    key,value = value_header.split('=')
+                    key = key.rstrip().lstrip()
+                    value = value.rstrip().lstrip()
+                    self.cookies[key] = value
+            else:
+                value = value.lstrip().rstrip()
+                self.headers[header] = value
+
 
 def test1():
     request = Request(b'GET / HTTP/1.1\r\nHost: localhost:8080\r\nConnection: keep-alive\r\n\r\n')
@@ -53,6 +73,7 @@ def test1():
     assert len(request.headers) == 2
     assert len(request.cookies) == 0
     assert request.body == b""  # There is no body for this request.
+    print("TEST 1 request.py PASSED")
     # When parsing POST requests, the body must be in bytes, not str
 
     # This is the start of a simple way (ie. no external libraries) to test your code.
@@ -72,25 +93,28 @@ def test2():
     assert request.headers["Content-Type"] == "application/json"
 
     assert "Content-Length" in request.headers
-    assert request.headers["Content-Length"] == 18
-
-    assert "id" in request.headers
-    assert "id" in request.cookies
-    assert request.headers["id"] == 123
-    assert request.cookies["id"] == 123
-
-    assert "theme" in request.headers
-    assert "theme" in request.cookies
-    assert request.headers["theme"] == "dark"
-    assert request.cookies["theme"] == "dark"
+    assert request.headers["Content-Length"] == "18"
 
     assert "Origin" in request.headers
     assert request.headers["Origin"] == "http://localhost:8080"
 
-    assert len(request.headers) == 6
+    assert "Cookie" in request.headers
+    assert request.headers["Cookie"] == "id=123; theme=dark"
+
+    assert len(request.headers) == 5
+
+    assert "id" in request.cookies
+    assert request.cookies["id"] == "123"
+
+
+    assert "theme" in request.cookies
+    assert request.cookies["theme"] == "dark"
+    
     assert len(request.cookies) == 2
 
-    assert request.body == b"{'content':'asdf'}"
+    
+    assert request.body == b'{"content":"asdf"}'
+    print("TEST 2 request.py PASSED")
 
     '''
     POST Request Test:
@@ -100,11 +124,51 @@ self.method^ self.path^  http^      self.headers^                 self.headers^ 
     self.headers^ANDself.cookies         self.headers^                       self.body^
 
     cookies: {"id"=123, "theme"="dark"}
+
     headers: {"Host"="localhost:8080", "Content-Type"="application/json", 
-    "Content-Length": 18, "id"=123, "theme"="dark"}
+    "Content-Length"= 18, "Cookie"= "id=123; theme=dark", "Origin"="http://localhost:8080"}
     '''
 
+def test3():
+    #need to test for Content-Type: text/html; charset=utf-8 (a post of like hello or sum)
+    request = Request(b'POST /path/image HTTP/1.1\r\nHost: localhost:8080\r\nConnection: keep-alive\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: 13\r\nCookie: id=123; theme=dark\r\n\r\nhello web app')
+    assert request.method == "POST"
+    assert request.path == "/path/image"
+    assert request.http_version == "HTTP/1.1"
+
+    assert "Host" in request.headers
+    assert request.headers["Host"] == "localhost:8080"
+
+    assert "Connection" in request.headers
+    assert request.headers["Connection"] == "keep-alive"
+
+    assert "Content-Type" in request.headers
+    assert request.headers["Content-Type"] == "text/html; charset=utf-8"
+
+    assert "Content-Length" in request.headers
+    assert request.headers["Content-Length"] == "13" 
+
+    assert "Cookie" in request.headers
+    assert request.headers["Cookie"] == "id=123; theme=dark"
+
+    assert len(request.headers) == 5
+
+
+    assert "id" in request.cookies
+    assert request.cookies["id"] == "123"
+
+    assert "theme" in request.cookies
+    assert request.cookies["theme"] == "dark"
+
+    assert len(request.cookies) == 2
+
+    assert request.body == b"hello web app"
+    print("TEST 3 request.py PASSED")
+
+
+        
 
 if __name__ == '__main__':
-    #test1()
+    test1()
     test2()
+    test3()

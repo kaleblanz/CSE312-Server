@@ -18,13 +18,15 @@ class Response:
         self.var_status_msg = "OK"
 
         #REMEMBER TO ADD NO SNIFF
-        self.var_headers = "\r\n"
+        self.var_headers = ""
 
         self.var_cookies = ""
 
         self.var_body = b""
 
         self.var_content_type = "text/plain; charset=utf-8"
+
+        self.var_content_length = 0
 
     def set_status(self, code, text):
         #code -> int
@@ -36,10 +38,20 @@ class Response:
     def headers(self, headers):
         #headers -> dict:{str=str}
         #iterate through each k-v and form a string and add it to header variable
+        if self.var_headers == "":
+            self.var_headers += "\r\n"
+        
         for header in headers:
             header_value = headers[header]
-            self.var_headers += header + ": " + header_value + "\r\n"
+            #if len(self.var_headers) == 2:
+            #self.var_headers += header + ": " + header_value + "\r\n\r\n"
+            #else:
+            #self.var_headers.replace("\r\n\r\n","\r\n")
+            self.var_headers += header + ": " + header_value + "\r\n\r\n"
             #print(f"each header line: {self.var_headers}")
+        
+        self.var_headers = self.var_headers.replace("\r\n\r\n","\r\n")
+        self.var_headers += "\r\n"
         return self
 
     def cookies(self, cookies):
@@ -85,15 +97,57 @@ class Response:
         return self
 
     def to_data(self):
-        return b''
+        #returns the entire response in bytes (PROPER HTTP PROTOCOL)
+        response = b''
+        status_line = "HTTP/1.1 " + str(self.var_status_code) + " " + self.var_status_msg
+
+        #encode the status line into bytes and at to response
+        response += status_line.encode()
+
+        #set the content length
+        self.var_content_length = len(self.var_body)
+
+        #no headers were added, just default 2 will be there
+        if len(self.var_headers) == 0:
+            pass
+            
+
+
+
+        response += self.var_body
+
+    
+
+        return response
+
+
+
+
+def testMultipleToData():
+    response = Response()
+    response.text("this is my text")
+    response.headers({"Content-Type": "TEXT/PLAIN; charset=utf-8"})
+    print(response.to_data())
+    response.headers({"Host": "localhost:8080"})
+    response.set_status(202, "OK!")
+    
+    expected = b'HTTP/1.1 202 OK!\r\nContent-Type: TEXT/PLAIN; charset=utf-8\r\nHost: localhost:8080\r\nContent-Length: 15\r\n\r\this is my text'
+              #b'HTTP/1.1 202 OK!\r\nContent-Type: TEXT/PLAIN; charset=utf-8\r\nHost: localhost:8080\r\n\r\nContent-Type: TEXT/PLAIN; charset=utf-8\r\nHost: localhost:8080\r\nthis is my text'
+    actual = response.to_data()
+    print("actual:",actual)
+
+    
+
+
 
 
 def test1():
     res = Response()
     res.text("hello")
     expected = b'HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: 5\r\n\r\nhello'
+              #b'HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: 5\r\n\r\nhello'
     actual = res.to_data()
-
+    print(f"actual: {actual}")
     assert expected == actual
 
 def test_headers_method():
@@ -101,11 +155,12 @@ def test_headers_method():
     response = Response()
     response.headers(dic)
     header_line = response.var_headers
-    print(f"header_line inside test: {header_line}")
+    #rint(f"header_line inside test: {header_line}")
     dic2 = {"Host":"localhost:8080"}
     response.headers(dic2)
-    assert response.var_headers == "\r\nContent-Type: text/plain; charset=utf-8\r\nCookie: id=123; theme=dark\r\nHost: localhost:8080\r\n"
-
+    #print("response.var_headers:",response.var_headers)
+    assert response.var_headers == "\r\nContent-Type: text/plain; charset=utf-8\r\nCookie: id=123; theme=dark\r\nHost: localhost:8080\r\n\r\n"
+                                 #b'\r\nContent-Type: text/plain; charset=utf-8\r\nCookie: id=123; theme=dark\r\nHost: localhost:8080\r\n\r\n'
 def test_cookies_method():
     dic = {"id":"123","theme":"dark"} 
     response = Response()
@@ -119,8 +174,27 @@ def test_cookies_method():
     assert response.var_cookies.rstrip() == "Cookie: id=123; theme=dark; x=y; a=b;"
                                   #"Cookie: id=123; theme=dark; x=y; a=b;"
 
+
+def test_headers_method2():
+    response = Response()
+    dic = {"id":"123", "theme":"dark"}
+    dic2 = {"x":"y", "a":"b"}
+
+    response.headers(dic)
+    #print("WITH 1 DIC response.var_headers:",response.var_headers)
+    assert response.var_headers == "\r\nid: 123\r\ntheme: dark\r\n\r\n"
+
+
+    response.headers(dic2)
+    #print("WITH 2 DIC response.var_headers:",response.var_headers)
+    assert response.var_headers == "\r\nid: 123\r\ntheme: dark\r\nx: y\r\na: b\r\n\r\n"
+
+
+
 if __name__ == '__main__':
     #test1()
     test_headers_method()
-    test_cookies_method()
+    #test_cookies_method()
+    #testMultipleToData()
+    test_headers_method2()
 

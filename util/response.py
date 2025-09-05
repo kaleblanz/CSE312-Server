@@ -5,10 +5,6 @@ Response Class:
 * helps you construct a response to sent to the client
 * i will constuct end responses at every endpoint that i have (this makes my life/code a lot easier) 
 '''
-'''
-before i send, i have to remove the ';' in the cookies string AND RSTRIP (and maybe even a \r\n)
-and add another \r\n to the headers string
-'''
 class Response:
     def __init__(self):
         #create instace variables that will be used in different methods
@@ -50,30 +46,24 @@ class Response:
             self.var_headers += header + ": " + header_value + "\r\n\r\n"
             #print(f"each header line: {self.var_headers}")
         
+        #replace all the double with single \r\n
         self.var_headers = self.var_headers.replace("\r\n\r\n","\r\n")
+        #add it to the end of the string
         self.var_headers += "\r\n"
         return self
 
     def cookies(self, cookies):
         #cookies -> dict {str -> str}
         #Cookie: name=value; name2=value2; name3=value3
-        value_string = ": "
-
-        #true when first time adding
         if self.var_cookies == "":
-            for cookie in cookies:
-                value = cookies[cookie]
-                value_string+= cookie + "=" + value + "; "
-            self.var_cookies = "Cookie" + value_string
-            print("value string: ",value_string)
-        #true when 2nd time or more adding
-        else:
-            value_string = ""
-            for cookie in cookies:
-                value = cookies[cookie]
-                value_string+= cookie + "=" + value + "; "
-            self.var_cookies += value_string
+            self.var_cookies += '\r\n'
 
+        for cookie in cookies:
+            value = cookie + "=" + cookies[cookie]
+            self.var_cookies += "Set-Cookie: " + value + '\r\n\r\n'
+
+        self.var_cookies = self.var_cookies.replace('\r\n\r\n','\r\n')
+        self.var_cookies += '\r\n'
         return self
 
     def bytes(self, data):
@@ -104,13 +94,28 @@ class Response:
         #encode the status line into bytes and at to response
         response += status_line.encode()
 
-        #set the content length
-        self.var_content_length = len(self.var_body)
+        #the case for when a content type was never given
+        if "Content-Type" not in self.var_headers:
+            self.var_headers += "\r\nContent-Type: text/plain; charset=utf-8\r\n"
 
-        #no headers were added, just default 2 will be there
-        if len(self.var_headers) == 0:
-            pass
-            
+        #set the content length
+        #assume we dont have to check if the content_length is wrong from user input
+        self.var_content_length = len(self.var_body)
+        if "Content-Length" not in self.var_headers:
+            self.var_headers += f"\r\nContent-Length: {self.var_content_length}\r\n"
+
+        #add our no sniff
+        self.var_headers += "\r\nX-Content-Type-Options: nosniff\r\n"
+        '''
+        if i have to string.replace('\r\n\r\n','\r\n')
+        += '\r\n'
+        to confirm the structure is correct
+        '''
+        header_cookie_line = self.var_headers+self.var_cookies
+        header_cookie_line = header_cookie_line.replace('\r\n\r\n','\r\n')
+        header_cookie_line += "\r\n"
+        header_cookie_line_encoded = header_cookie_line.encode()
+        response += header_cookie_line_encoded
 
 
 
@@ -132,7 +137,6 @@ def testMultipleToData():
     response.set_status(202, "OK!")
     
     expected = b'HTTP/1.1 202 OK!\r\nContent-Type: TEXT/PLAIN; charset=utf-8\r\nHost: localhost:8080\r\nContent-Length: 15\r\n\r\this is my text'
-              #b'HTTP/1.1 202 OK!\r\nContent-Type: TEXT/PLAIN; charset=utf-8\r\nHost: localhost:8080\r\n\r\nContent-Type: TEXT/PLAIN; charset=utf-8\r\nHost: localhost:8080\r\nthis is my text'
     actual = response.to_data()
     print("actual:",actual)
 
@@ -144,7 +148,7 @@ def testMultipleToData():
 def test1():
     res = Response()
     res.text("hello")
-    expected = b'HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: 5\r\n\r\nhello'
+    expected = b'HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: 5\r\nX-Content-Type-Options: nosniff\r\n\r\nhello'
               #b'HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: 5\r\n\r\nhello'
     actual = res.to_data()
     print(f"actual: {actual}")
@@ -161,18 +165,26 @@ def test_headers_method():
     #print("response.var_headers:",response.var_headers)
     assert response.var_headers == "\r\nContent-Type: text/plain; charset=utf-8\r\nCookie: id=123; theme=dark\r\nHost: localhost:8080\r\n\r\n"
                                  #b'\r\nContent-Type: text/plain; charset=utf-8\r\nCookie: id=123; theme=dark\r\nHost: localhost:8080\r\n\r\n'
+        
+
+
+
 def test_cookies_method():
     dic = {"id":"123","theme":"dark"} 
     response = Response()
     response.cookies(dic)
     cookie_line = response.var_cookies
-    print(f"cookie line: {cookie_line}")
+    #print(f"cookie line: {cookie_line}")
+    assert response.var_cookies == "\r\nSet-Cookie: id=123\r\nSet-Cookie: theme=dark\r\n\r\n"
 
     dic2 = {"x":"y","a":"b"}
     response.cookies(dic2)
-    print(f"the self.cooke:{response.var_cookies}")
-    assert response.var_cookies.rstrip() == "Cookie: id=123; theme=dark; x=y; a=b;"
-                                  #"Cookie: id=123; theme=dark; x=y; a=b;"
+    #print(f"the self.cooke:{response.var_cookies}")
+    assert response.var_cookies == "\r\nSet-Cookie: id=123\r\nSet-Cookie: theme=dark\r\nSet-Cookie: x=y\r\nSet-Cookie: a=b\r\n\r\n"
+    #print("test cookies method passed")
+    
+
+
 
 
 def test_headers_method2():
@@ -192,9 +204,9 @@ def test_headers_method2():
 
 
 if __name__ == '__main__':
-    #test1()
+    test1()
     test_headers_method()
-    #test_cookies_method()
+    test_cookies_method()
     #testMultipleToData()
     test_headers_method2()
 

@@ -75,7 +75,7 @@ class Response:
     def text(self, data):
         #data -> string
         data_bytes = data.encode()
-        self.var_body+= data_bytes
+        self.var_body += data_bytes
         return self
 
     def json(self, data):
@@ -152,8 +152,9 @@ def testMultipleToData():
     response.headers({"Host": "localhost:8080"})
     response.cookies({"x":"y"})
     response.set_status(202, "OKAY")
-    expected = b'HTTP/1.1 202 OKAY\r\nContent-Type: TEXT/PLAIN; charset=utf-8\r\nContent-Length: 15\r\nX-Content-Type-Options: nosniff\r\nHost: localhost:8080\r\nSet-Cookie: id=123\r\nSet-Cookie: theme=dark\r\nSet-Cookie: x=y\r\n\r\nthis is my text'
-              #b'HTTP/1.1 202 OKAY\r\nContent-Type: TEXT/PLAIN; charset=utf-8\r\nContent-Length: 15\r\nX-Content-Type-Options: nosniff\r\nHost: localhost:8080\r\nSet-Cookie: id=123\r\nSet-Cookie: theme=dark\r\nSet-Cookie: x=y\r\n\r\nthis is my text'
+    response.bytes(b" from me")
+    expected = b'HTTP/1.1 202 OKAY\r\nContent-Type: TEXT/PLAIN; charset=utf-8\r\nContent-Length: 15\r\nX-Content-Type-Options: nosniff\r\nHost: localhost:8080\r\nSet-Cookie: id=123\r\nSet-Cookie: theme=dark\r\nSet-Cookie: x=y\r\n\r\nthis is my text from me'
+              #b'HTTP/1.1 202 OKAY\r\nContent-Type: TEXT/PLAIN; charset=utf-8\r\nContent-Length: 15\r\nX-Content-Type-Options: nosniff\r\nHost: localhost:8080\r\nSet-Cookie: id=123\r\nSet-Cookie: theme=dark\r\nSet-Cookie: x=y\r\n\r\nthis is my text from me'
     actual = response.to_data()
     #print("2nd print:",actual)
     assert expected == actual
@@ -172,7 +173,8 @@ def testJSON():
     expected = b'HTTP/1.1 404 NOOO\r\nContent-Type: application/json\r\nContent-Length: 12\r\nX-Content-Type-Options: nosniff\r\nSet-Cookie: p=opp\r\nSet-Cookie: b=sds\r\n\r\n[1, 2, 3, 4]'
               #b'HTTP/1.1 404 NOOO\r\nContent-Type: application/json\r\nContent-Length: 12\r\nX-Content-Type-Options: nosniff\r\nSet-Cookie: p=opp\r\nSet-Cookie: b=sds\r\n\r\n[1, 2, 3, 4]'
     actual = response.to_data()
-    print("actual:",actual)
+    #print("actual:",actual)
+    assert expected == actual
 
 
 

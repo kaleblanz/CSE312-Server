@@ -1,5 +1,6 @@
-from request import Request 
-from response import Response 
+#from response import Response 
+from util.response import Response
+
 import re
 
 class Router:
@@ -74,6 +75,7 @@ class Router:
             response.text("your path can not be found :(")
             response.to_data()
             
+            
                        
 
 
@@ -103,7 +105,8 @@ class Router:
             pass
         '''
 
-'''
+
+from util.request import Request 
 def test1():
     #404 error!
     router = Router()
@@ -196,4 +199,4 @@ if __name__ == '__main__':
     #test6()
     test7()
     #test8()
-'''
+

@@ -1,4 +1,5 @@
 from request import Request 
+from response import Response 
 import re
 
 class Router:
@@ -68,6 +69,11 @@ class Router:
         if func_called_bool == False:
             print("404 will be called!!!!!")
             #return 404
+            response = Response()
+            response.set_status(404,"Not Found")
+            response.text("your path can not be found :(")
+            response.to_data()
+            
                        
 
 
@@ -97,7 +103,7 @@ class Router:
             pass
         '''
 
-
+'''
 def test1():
     #404 error!
     router = Router()
@@ -188,6 +194,6 @@ if __name__ == '__main__':
     #test4()
     #test5()
     #test6()
-    #test7()
-    test8()
-    
+    test7()
+    #test8()
+'''

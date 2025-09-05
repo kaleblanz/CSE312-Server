@@ -83,7 +83,7 @@ class Response:
         #change content type
         self.var_content_type = "application/json"
         #turn the data input to a json string then decode to bytes
-        self.var_body = json.dumps().encode()
+        self.var_body = json.dumps(data).encode()
         return self
 
     def to_data(self):
@@ -96,7 +96,10 @@ class Response:
 
         #the case for when a content type was never given
         if "Content-Type" not in self.var_headers:
-            self.var_headers += "\r\nContent-Type: text/plain; charset=utf-8\r\n"
+            if self.var_content_type != "":
+                self.var_headers += f"\r\nContent-Type: {self.var_content_type}\r\n"
+            else:
+                self.var_headers += "\r\nContent-Type: text/plain; charset=utf-8\r\n"
 
         #set the content length
         #assume we dont have to check if the content_length is wrong from user input
@@ -105,14 +108,19 @@ class Response:
             self.var_headers += f"\r\nContent-Length: {self.var_content_length}\r\n"
 
         #add our no sniff
-        self.var_headers += "\r\nX-Content-Type-Options: nosniff\r\n"
+        if "X-Content-Type-Options" not in self.var_headers:
+            self.var_headers += "\r\nX-Content-Type-Options: nosniff\r\n"
         '''
         if i have to string.replace('\r\n\r\n','\r\n')
         += '\r\n'
         to confirm the structure is correct
         '''
         header_cookie_line = self.var_headers+self.var_cookies
-        header_cookie_line = header_cookie_line.replace('\r\n\r\n','\r\n')
+        #print("header_cookie_line before replace:", header_cookie_line.encode() )
+        header_cookie_line = header_cookie_line.replace("\r\n\r\n\r\n\r\n","\r\n")
+        header_cookie_line = header_cookie_line.replace("\r\n\r\n\r\n","\r\n")
+        header_cookie_line = header_cookie_line.replace("\r\n\r\n","\r\n")
+        #print("header_cookie_line after replace:", header_cookie_line.encode() )
         header_cookie_line += "\r\n"
         header_cookie_line_encoded = header_cookie_line.encode()
         response += header_cookie_line_encoded
@@ -129,18 +137,43 @@ class Response:
 
 
 def testMultipleToData():
+    #TEXT/PLAIN is all caps just to make sure it uses the all caps one and not the lower case for the specific test case
     response = Response()
-    response.text("this is my text")
+    response.bytes(b"this is my text")
     response.headers({"Content-Type": "TEXT/PLAIN; charset=utf-8"})
-    print(response.to_data())
-    response.headers({"Host": "localhost:8080"})
-    response.set_status(202, "OK!")
+    response.cookies({"id":"123", "theme":"dark"})
+    expected = b'HTTP/1.1 200 OK\r\nContent-Type: TEXT/PLAIN; charset=utf-8\r\nContent-Length: 15\r\nX-Content-Type-Options: nosniff\r\nSet-Cookie: id=123\r\nSet-Cookie: theme=dark\r\n\r\nthis is my text'
+              #b'HTTP/1.1 200 OK\r\nContent-Type: TEXT/PLAIN; charset=utf-8\r\nContent-Length: 15\r\nX-Content-Type-Options: nosniff\r\nSet-Cookie: id=123\r\nSet-Cookie: theme=dark\r\n\r\nthis is my text    
+    actual = response.to_data()
+    #print("1st print:",actual)
+    assert actual == expected
     
-    expected = b'HTTP/1.1 202 OK!\r\nContent-Type: TEXT/PLAIN; charset=utf-8\r\nHost: localhost:8080\r\nContent-Length: 15\r\n\r\this is my text'
+    
+    response.headers({"Host": "localhost:8080"})
+    response.cookies({"x":"y"})
+    response.set_status(202, "OKAY")
+    expected = b'HTTP/1.1 202 OKAY\r\nContent-Type: TEXT/PLAIN; charset=utf-8\r\nContent-Length: 15\r\nX-Content-Type-Options: nosniff\r\nHost: localhost:8080\r\nSet-Cookie: id=123\r\nSet-Cookie: theme=dark\r\nSet-Cookie: x=y\r\n\r\nthis is my text'
+              #b'HTTP/1.1 202 OKAY\r\nContent-Type: TEXT/PLAIN; charset=utf-8\r\nContent-Length: 15\r\nX-Content-Type-Options: nosniff\r\nHost: localhost:8080\r\nSet-Cookie: id=123\r\nSet-Cookie: theme=dark\r\nSet-Cookie: x=y\r\n\r\nthis is my text'
+    actual = response.to_data()
+    #print("2nd print:",actual)
+    assert expected == actual
+
+
+    
+    
+def testJSON():
+    response = Response()
+    response.text("hellooooo")
+    lis = [1,2,3,4]
+    response.json(lis)
+    response.set_status(404, "NOOO")
+    response.cookies({"p":"opp","b":"sds"})
+
+    expected = b'HTTP/1.1 404 NOOO\r\nContent-Type: application/json\r\nContent-Length: 12\r\nX-Content-Type-Options: nosniff\r\nSet-Cookie: p=opp\r\nSet-Cookie: b=sds\r\n\r\n[1, 2, 3, 4]'
+              #b'HTTP/1.1 404 NOOO\r\nContent-Type: application/json\r\nContent-Length: 12\r\nX-Content-Type-Options: nosniff\r\nSet-Cookie: p=opp\r\nSet-Cookie: b=sds\r\n\r\n[1, 2, 3, 4]'
     actual = response.to_data()
     print("actual:",actual)
 
-    
 
 
 
@@ -151,7 +184,7 @@ def test1():
     expected = b'HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: 5\r\nX-Content-Type-Options: nosniff\r\n\r\nhello'
               #b'HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: 5\r\n\r\nhello'
     actual = res.to_data()
-    print(f"actual: {actual}")
+    #print(f"actual: {actual}")
     assert expected == actual
 
 def test_headers_method():
@@ -207,6 +240,7 @@ if __name__ == '__main__':
     test1()
     test_headers_method()
     test_cookies_method()
-    #testMultipleToData()
+    testMultipleToData()
     test_headers_method2()
+    testJSON()
 

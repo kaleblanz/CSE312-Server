@@ -107,6 +107,7 @@ class Router:
         '''
 
 
+'''
 from util.request import Request 
 def test1():
     #404 error!
@@ -200,4 +201,4 @@ if __name__ == '__main__':
     #test6()
     test7()
     #test8()
-
+'''

@@ -77,7 +77,7 @@ class Router:
             response.to_data()
 
 
-'''
+
 from util.request import Request 
 def test1():
     #404 error!
@@ -206,6 +206,37 @@ def test14():
     print(f"router.route:{router.route}")
     router.route_request(request, None)
 
+def test15():
+    #404 eroor
+    router = Router()
+    request = Request(b'POST /public/image/image.png HTTP/1.1\r\nHost: localhost:8080\r\nConnection: keep-alive\r\n\r\n')
+    router.add_route("POST", "/public/image/image.webp", action_function, True)
+    print(f"router.route:{router.route}")
+    router.route_request(request, None)
+
+def test16():
+    #print 404
+    router = Router()
+    request = Request(b'POST /public/image/image.png HTTP/1.1\r\nHost: localhost:8080\r\nConnection: keep-alive\r\n\r\n')
+    router.add_route("POST", "/public/image/image.webp", action_function, False)
+    print(f"router.route:{router.route}")
+    router.route_request(request, None)
+
+def test17():
+    # print route
+    router = Router()
+    request = Request(b'POST /public/image/image.png HTTP/1.1\r\nHost: localhost:8080\r\nConnection: keep-alive\r\n\r\n')
+    router.add_route("POST", "/public/image/image.", action_function, False)
+    print(f"router.route:{router.route}")
+    router.route_request(request, None)
+
+def test18():
+    # print 404
+    router = Router()
+    request = Request(b'POST /public/image/image.png HTTP/1.1\r\nHost: localhost:8080\r\nConnection: keep-alive\r\n\r\n')
+    router.add_route("POST", "/public/image/image.", action_function, True)
+    print(f"router.route:{router.route}")
+    router.route_request(request, None)
 
 
 def action_function(request, handler):
@@ -226,5 +257,9 @@ if __name__ == '__main__':
     #test11()
     #test12()
     #test13()
-    test14()
-'''
+    #test14()
+    #test15()
+    #test16()
+    #test17()
+    test18()
+

@@ -29,7 +29,7 @@ class Router:
         
 
     def route_request(self, request, handler):
-        print(f"self.route:{self.route}")
+        print(f"self.route instance var:{self.route}")
         '''
         * takes a request object and a TCPHandler object (returns nothing)
         
@@ -39,6 +39,8 @@ class Router:
         request_method = request.method
         request_path = request.path
         request_method_path = request_method + " " + request_path
+
+        print(f"input request method path:{request_method_path}")
 
         func_called_bool = False
 
@@ -72,12 +74,13 @@ class Router:
             print("404 will be called!!!!!")
             #call 404
             response = Response()
-            response.set_status(404,"Not Found")
-            response.text("your path can not be found :(")
-            response.to_data()
+            response.set_status(404, "Not Found")
+            response.text("Response: your path can not be found :(")
+            handler.request.sendall(response.to_data())
 
 
 
+'''
 from util.request import Request 
 def test1():
     #404 error!
@@ -130,7 +133,7 @@ def test6():
     #404 error
     router = Router()
     request = Request(b'GET /public/image/eagle.jpg HTTP/1.1\r\nHost: localhost:8080\r\nConnection: keep-alive\r\n\r\n')
-    router.add_route("GET","chat.html",action_function,False)
+    router.add_route("GET","eagle.jpg",action_function,False)
     router.add_route("GET","dog.html",action_function,False)
     router.add_route("GET","/public/image/",action_function,True)
     print(f"router.route:{router.route}")
@@ -249,7 +252,7 @@ if __name__ == '__main__':
     #test3()
     #test4()
     #test5()
-    #test6()
+    test6()
     #test7()
     #test8()
     #test9()
@@ -261,5 +264,5 @@ if __name__ == '__main__':
     #test15()
     #test16()
     #test17()
-    test18()
-
+    #test18()
+'''

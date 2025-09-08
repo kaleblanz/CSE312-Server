@@ -43,68 +43,38 @@ class Router:
         func_called_bool = False
 
         '''
+        maybe 1 if
+        
         with the request line, see if it matches(exact or 'start substring' ) with any of the keys in the dict
         possible inputs:
         /public/image/image.webp
         /public/image/image.png
-        
         '''
-        if request_method_path in self.route:
-            #this means that the path given by Request object is an added route
-            func = self.route[request_method_path][0]
-            bool_path = self.route[request_method_path][1]
-            func_called_bool = True
-            print(f"the route from input request:{request_method_path}")
-            func(request,handler)
-        
         
         for request_line in self.route:
-             if re.match(request_line,request_method_path) != None:
+             if re.match(request_line,request_method_path) is not None:
                   bool_path = self.route[request_line][1]
-                  if bool_path == False:
+                  if bool_path == False: #(string has to be a substring)
                        func = self.route[request_line][0]
                        func(request,handler)
                        func_called_bool = True
                        print(f"the route from input request object:{request_method_path}      the request in self.route:{request_line}")
                        break
-        
+                  else:#when bool_path = true (strings have to be exact)
+                      if request_line == request_method_path:
+                          func = self.route[request_line][0]
+                          func(request, handler)
+                          func_called_bool = True
+                          print(f"the route from input request object:{request_method_path}      the request in self.route:{request_line}")
+                          break
+
         if func_called_bool == False:
             print("404 will be called!!!!!")
-            #return 404
+            #call 404
             response = Response()
             response.set_status(404,"Not Found")
             response.text("your path can not be found :(")
             response.to_data()
-            
-            
-                       
-
-
-
-
-        '''
-        #this should deal for the multiple image type case
-        if re.match("/public/image/",request_method_path) != None:
-            if request_method_path in self.route:
-                  func = self.route[request_method_path][0]
-                  func(request,handler)
-            else:
-                exact_bool = self.route[request_method_path][1]
-                if exact_bool == True and request_method_path not in self.route:
-                     pass
-                    #return 404
-                func = self.route["/public/image/"]
-                func(request,handler)[0]
-        
-        #if the request line is a route in the set of keys in the objects dicitionary
-        elif (request_method_path in self.route):
-            func = self.route[request_method_path][0]
-            func(request,handler)
-        
-        #if both of those fail, send a response with a 404
-        else:
-            pass
-        '''
 
 
 '''
@@ -187,6 +157,56 @@ def test8():
     print(f"router.route:{router.route}")
     router.route_request(request, None)
 
+def test9():
+    #print router.route: /
+    router = Router()
+    request = Request(b'GET /public/image/ HTTP/1.1\r\nHost: localhost:8080\r\nConnection: keep-alive\r\n\r\n')
+    router.add_route("GET","/",action_function,False)
+    print(f"router.route:{router.route}")
+    router.route_request(request, None)
+
+def test10():
+    #print 404 error
+    router = Router()
+    request = Request(b'GET /public/image/ HTTP/1.1\r\nHost: localhost:8080\r\nConnection: keep-alive\r\n\r\n')
+    router.add_route("GET","/",action_function,True)
+    print(f"router.route:{router.route}")
+    router.route_request(request, None)
+
+def test11():
+    #print 404 error
+    router = Router()
+    request = Request(b'GET /public/image/ HTTP/1.1\r\nHost: localhost:8080\r\nConnection: keep-alive\r\n\r\n')
+    router.add_route("GET", "/image/", action_function, False)
+    print(f"router.route:{router.route}")
+    router.route_request(request, None)
+
+def test12():
+    #print 404 error
+    router = Router()
+    request = Request(b'GET /public/image/ HTTP/1.1\r\nHost: localhost:8080\r\nConnection: keep-alive\r\n\r\n')
+    router.add_route("GET", "/image/", action_function, True)
+    print(f"router.route:{router.route}")
+    router.route_request(request, None)
+
+def test13():
+    #print 404
+    router = Router()
+    request = Request(b'POST / HTTP/1.1\r\nHost: localhost:8080\r\nConnection: keep-alive\r\n\r\n')
+    router.add_route("GET", "/", action_function, False)
+    print(f"router.route:{router.route}")
+    router.route_request(request, None)
+
+
+def test14():
+    #print path of /
+    router = Router()
+    request = Request(b'POST / HTTP/1.1\r\nHost: localhost:8080\r\nConnection: keep-alive\r\n\r\n')
+    router.add_route("POST", "/", action_function, True)
+    print(f"router.route:{router.route}")
+    router.route_request(request, None)
+
+
 
 def action_function(request, handler):
     pass
@@ -199,6 +219,12 @@ if __name__ == '__main__':
     #test4()
     #test5()
     #test6()
-    test7()
+    #test7()
     #test8()
+    #test9()
+    #test10()
+    #test11()
+    #test12()
+    #test13()
+    test14()
 '''

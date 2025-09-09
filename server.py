@@ -33,7 +33,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         self.router.add_route("POST","/api/chats", create_message_route)
 
         # add GET message route
-        self.router.add_route("GET", "/api/chats", add_message_route)
+        self.router.add_route("GET", "/api/chats", get_message_route)
 
 
 

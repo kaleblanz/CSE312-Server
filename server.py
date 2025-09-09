@@ -29,6 +29,12 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         #render js
         self.router.add_route("GET", "/public/js/.", render_js)
 
+        #add create message route
+        self.router.add_route("POST","/api/chats", create_message_route)
+
+        # add GET message route
+        self.router.add_route("GET", "/api/chats", add_message_route)
+
 
 
         super().__init__(request, client_address, server)

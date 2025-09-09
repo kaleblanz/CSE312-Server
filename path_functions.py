@@ -1,5 +1,6 @@
 from util.response import Response
 from util.request import Request
+import json
 
 def render_index_html(request, handler):
     response = Response()
@@ -46,7 +47,7 @@ def render_images(request, handler):
     with open(request_path, "rb") as img_file:
         # the body of the response is reading the html file
         response.bytes(img_file.read())
-        response.headers({"Content-Type": f"image/{mime_type}"})
+        response.headers({"Content-Type": f"image/{mime_type}; charset=utf-8"})
         response.set_status(200, "OK")
         handler.request.sendall(response.to_data())
 
@@ -57,6 +58,12 @@ def render_js(request, handler):
     request_path = request.path[1:]
     with open(request_path, "rb") as js_file:
         response.bytes(js_file.read())
-        response.headers({"Content-Type": "application/javascript"})
+        response.headers({"Content-Type": "application/javascript; charset=utf-8"})
         response.set_status(200, "OK")
         handler.request.sendall(response.to_data())
+
+def create_message_route(request, handler):
+    pass
+
+def add_message_route(request, handler):
+    pass

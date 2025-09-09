@@ -20,9 +20,14 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         #$ is for re, makes it so string only matches with the slash
         self.router.add_route("GET","/$", render_index_html)
 
+        self.router.add_route("GET","/chat",render_index_html )
+
         #render any images
         # dot means - amything can replace the dot besides an empty string
         self.router.add_route("GET","/public/imgs/.",render_images)
+
+        #render js
+        self.router.add_route("GET", "/public/js/.", render_js)
 
 
 

@@ -127,6 +127,9 @@ def get_message_route(request, handler):
 
     for data in all_data:
         data.pop("_id")
+        data["content"] = data["content"].replace("&","&amp;")
+        data["content"] = data["content"].replace("<", "&lt;")
+        data["content"] = data["content"].replace(">", "&gt;")
         list_.append(data)
         print(data)
 

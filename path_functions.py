@@ -47,6 +47,8 @@ def render_images(request, handler):
     #gets rid of the starting / in the path
     if mime_type == "ico":
         mime_type = "x-icon"
+    if mime_type == "jpg":
+        mime_type = "jpeg"
     request_path = request.path[1:]
     print(f"request.path:{request_path}")
     print(f"mime:{mime_type}")
@@ -109,7 +111,8 @@ def create_message_route(request, handler):
         print(f"prev_message_from_user id: {prev_message_from_user['id']}")
         prev_id = prev_message_from_user["id"]
         prev_author_id = prev_message_from_user["author"]
-        message_dict = {"author": prev_author_id, "id": prev_id, "content": content_of_request, "updated": False}
+        uuid_new_id = str(uuid.uuid4())
+        message_dict = {"author": prev_author_id, "id": uuid_new_id, "content": content_of_request, "updated": False}
         chat_collection.insert_one(message_dict)
 
 
@@ -147,7 +150,7 @@ def get_message_route(request, handler):
     #print(f"json_all_data: {json_all_data}      type(json_all_data): {type(json_all_data)}")
     response.json(response_data)
     print(f"response_data: {response.var_body}")
-    response.headers({"Content-Type": "application/json; charset=utf-8"})
+    response.headers({"Content-Type": "application/json"})
     #response.headers({"Content-Type": "application/json"})
     #response.headers({"Content-Length": len(response.var_body.encode())})
     handler.request.sendall(response.to_data())

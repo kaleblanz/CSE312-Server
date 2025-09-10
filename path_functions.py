@@ -45,6 +45,8 @@ def render_images(request, handler):
     response = Response()
     mime_type = request.path.split(".")[1]
     #gets rid of the starting / in the path
+    if mime_type == "ico":
+        mime_type = "x-icon"
     request_path = request.path[1:]
     print(f"request.path:{request_path}")
     print(f"mime:{mime_type}")

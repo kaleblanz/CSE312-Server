@@ -53,7 +53,8 @@ def render_images(request, handler):
     with open(request_path, "rb") as img_file:
         # the body of the response is reading the html file
         response.bytes(img_file.read())
-        response.headers({"Content-Type": f"image/{mime_type}; charset=utf-8"})
+        response.headers({"Content-Type": f"image/{mime_type}"})
+        #response.headers({"Content-Type": f"image/{mime_type}; charset=utf-8"})
         #response.headers({"Content-Length": len(img_file.read().encode())})
         response.set_status(200, "OK")
         handler.request.sendall(response.to_data())
@@ -146,7 +147,8 @@ def get_message_route(request, handler):
     #print(f"json_all_data: {json_all_data}      type(json_all_data): {type(json_all_data)}")
     response.json(response_data)
     print(f"response_data: {response.var_body}")
-    response.headers({"Content-Type": "application/json"})
+    response.headers({"Content-Type": "application/json; charset=utf-8"})
+    #response.headers({"Content-Type": "application/json"})
     #response.headers({"Content-Length": len(response.var_body.encode())})
     handler.request.sendall(response.to_data())
 

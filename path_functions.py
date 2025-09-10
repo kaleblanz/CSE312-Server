@@ -109,7 +109,8 @@ def create_message_route(request, handler):
         print(f"prev_message_from_user id: {prev_message_from_user['id']}")
         prev_id = prev_message_from_user["id"]
         prev_author_id = prev_message_from_user["author"]
-        message_dict = {"author": prev_author_id, "id": prev_id, "content": content_of_request, "updated": False}
+        uuid_new_id = str(uuid.uuid4())
+        message_dict = {"author": prev_author_id, "id": uuid_new_id, "content": content_of_request, "updated": False}
         chat_collection.insert_one(message_dict)
 
 

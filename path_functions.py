@@ -50,7 +50,7 @@ def render_images(request, handler):
     with open(request_path, "rb") as img_file:
         # the body of the response is reading the html file
         response.bytes(img_file.read())
-        response.headers({"Content-Type": f"image/{mime_type}; charset=utf-8"})
+        response.headers({"Content-Type": f"image/{mime_type}"})
         response.set_status(200, "OK")
         handler.request.sendall(response.to_data())
 
@@ -61,7 +61,7 @@ def render_js(request, handler):
     request_path = request.path[1:]
     with open(request_path, "rb") as js_file:
         response.bytes(js_file.read())
-        response.headers({"Content-Type": "application/javascript; charset=utf-8"})
+        response.headers({"Content-Type": "application/javascript"})
         response.set_status(200, "OK")
         handler.request.sendall(response.to_data())
 

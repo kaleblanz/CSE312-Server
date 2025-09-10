@@ -63,8 +63,8 @@ def render_js(request, handler):
     request_path = request.path[1:]
     with open(request_path, "rb") as js_file:
         response.bytes(js_file.read())
-        response.headers({"Content-Type": "text/javascript"})
-        #response.headers({"Content-Type": "application/javascript; charset=utf-8"})
+        #response.headers({"Content-Type": "text/javascript"})
+        response.headers({"Content-Type": "application/javascript; charset=utf-8"})
         #response.headers({"Content-Length": len(js_file.read())})
         response.set_status(200, "OK")
         handler.request.sendall(response.to_data())

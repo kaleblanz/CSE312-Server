@@ -34,6 +34,7 @@ def render_index_html(request, handler):
         response.bytes(layout_html.encode())
 
         response.headers({"Content-Type": "text/html; charset=utf-8"})
+        #response.headers({"Content-Length": len(html_body.encode())})
         response.set_status(200,"OK")
         handler.request.sendall(response.to_data())
 
@@ -51,6 +52,7 @@ def render_images(request, handler):
         # the body of the response is reading the html file
         response.bytes(img_file.read())
         response.headers({"Content-Type": f"image/{mime_type}; charset=utf-8"})
+        #response.headers({"Content-Length": len(img_file.read().encode())})
         response.set_status(200, "OK")
         handler.request.sendall(response.to_data())
 
@@ -61,7 +63,9 @@ def render_js(request, handler):
     request_path = request.path[1:]
     with open(request_path, "rb") as js_file:
         response.bytes(js_file.read())
-        response.headers({"Content-Type": "application/javascript; charset=utf-8"})
+        response.headers({"Content-Type": "text/javascript"})
+        #response.headers({"Content-Type": "application/javascript; charset=utf-8"})
+        #response.headers({"Content-Length": len(js_file.read())})
         response.set_status(200, "OK")
         handler.request.sendall(response.to_data())
 
@@ -109,6 +113,8 @@ def create_message_route(request, handler):
 
     response.set_status(200,"OK")
     response.text("response was sent for create_message_route")
+    response.headers({"Content-Type": "text/html; charset=utf-8"})
+    #response.headers({"Content-Length": len("response was sent for create_message_route")})
     handler.request.sendall(response.to_data())
 
 
@@ -137,6 +143,8 @@ def get_message_route(request, handler):
     #json_all_data = json.dumps(response_data)
     #print(f"json_all_data: {json_all_data}      type(json_all_data): {type(json_all_data)}")
     response.json(response_data)
-    print(f"response_data: {response.var_body.decode()}")
+    print(f"response_data: {response.var_body}")
+    response.headers({"Content-Type": "application/json"})
+    #response.headers({"Content-Length": len(response.var_body.encode())})
     handler.request.sendall(response.to_data())
 

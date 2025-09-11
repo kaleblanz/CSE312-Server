@@ -35,6 +35,10 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         # add GET message route
         self.router.add_route("GET", "/api/chats", get_message_route)
 
+        # add PATCH message route
+        # the period is for the id that is to be expected
+        self.router.add_route("PATCH", f"/api/chats/.", update_message_route)
+
 
 
         super().__init__(request, client_address, server)

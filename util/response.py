@@ -102,7 +102,7 @@ class Response:
                 self.var_headers += "\r\nContent-Type: text/plain; charset=utf-8\r\n"
 
         #set the content length
-        #assume we dont have to check if the content_length is wrong from user input
+        #assume we dont have to check i f the content_length is wrong from user input
         self.var_content_length = len(self.var_body)
         if "Content-Length" not in self.var_headers:
             self.var_headers += f"\r\nContent-Length: {self.var_content_length}\r\n"

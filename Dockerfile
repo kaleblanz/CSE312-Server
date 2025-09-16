@@ -7,6 +7,7 @@ COPY ./requirements.txt ./requirements.txt
 COPY ./server.py ./server.py
 COPY ./public ./public
 COPY ./util ./util
+COPY ./path_functions.py ./path_functions.py
 
 RUN pip3 install -r requirements.txt
 

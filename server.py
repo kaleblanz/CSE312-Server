@@ -39,6 +39,10 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         # the period is for the id that is to be expected
         self.router.add_route("PATCH", f"/api/chats/.", update_message_route)
 
+        # add DELETE message route
+        #period makes it so we can get the id
+        self.router.add_route("DELETE",f"/api/chats/." ,delete_message_route)
+
 
 
         super().__init__(request, client_address, server)

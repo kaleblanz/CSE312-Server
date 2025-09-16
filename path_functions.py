@@ -105,6 +105,7 @@ def create_message_route(request, handler):
     else:
         #print("inside NOT first text")
         #this user has a session cookie already and has already sent a message
+        print(f"request_cookies: {request_cookies}")
         prev_message_from_user = chat_collection.find_one({"id" : request_cookies["session"]})
         #prev_message_from_user = chat_collection.find_one({"messages" : [{"id": request_cookies["session"]}]})
         #print(f"prev_message_from_user: {prev_message_from_user}")
@@ -139,10 +140,12 @@ def get_message_route(request, handler):
 
     for data in all_data:
         data.pop("_id")
-        data["content"] = data["content"].replace("&","&amp;")
-        data["content"] = data["content"].replace("<", "&lt;")
-        data["content"] = data["content"].replace(">", "&gt;")
-        list_.append(data)
+        print(f"data inside get_message_route: {data}")
+        if "content" in data:
+            data["content"] = data["content"].replace("&","&amp;")
+            data["content"] = data["content"].replace("<", "&lt;")
+            data["content"] = data["content"].replace(">", "&gt;")
+            list_.append(data)
         #print(data)
 
     #print(f"response_data: {response_data}")
@@ -217,6 +220,11 @@ def update_message_route(request, handler):
         #the new info we want to replace it with
         new_content_of_request = json.loads(request.body.decode())['content']
 
+
+        #new_content_of_request = new_content_of_request.replace("&", "&amp;")
+        #new_content_of_request = new_content_of_request.replace("<", "&lt;")
+        #new_content_of_request = new_content_of_request.replace(">", "&gt;")
+
         #update the collection with the id of request token (id of the message we want to change)
         chat_collection.update_one({"id":request_token}, {"$set": {"content": new_content_of_request, "updated":True}})
 
@@ -231,6 +239,58 @@ def update_message_route(request, handler):
         response.text("this ain't your text homie")
         handler.request.sendall(response.to_data())
         return
+
+
+
+
+
+def delete_message_route(request, handler):
+    response = Response()
+
+    print("inside the delete_message_route function")
+    request_body = request.body
+    #print(f"request_body: {request_body}")
+    request_cookies = request.cookies
+    #print(f"request_cookies: {request_cookies}")
+    request_path = request.path
+    #print(f"request_path: {request_path}")
+
+    #the user's cookie who made the delete request
+    user_cookie_trying_to_delete = request_cookies.get("session")
+    print(f"user_cookie_trying_to_delete: {user_cookie_trying_to_delete}")
+
+    #the id of the message trying to be deleted
+    message_id = request.path.split("/")[3]
+    print(f"message_id: {message_id}")
+
+    #if a user trys to delete without having a cookie
+    if user_cookie_trying_to_delete is None:
+        response.set_status(403, "Forbidden")
+        response.text("you have no cookie")
+        handler.request.sendall(response.to_data())
+        return
+
+    #a message sent by the user trying to delete this random message
+    active_user_prev_message = chat_collection.find_one({"id": user_cookie_trying_to_delete})
+    print(f"active_user_prev_message: {active_user_prev_message}")
+
+    #the message dict that holds the data of the specific message trying to be deleted
+    old_message_dict = chat_collection.find_one({"id" : message_id})
+    print(f"old_message_dict: {old_message_dict}")
+
+    #if the 2 author id's dont =, they are different users and return error
+    if old_message_dict['author'] != active_user_prev_message["author"]:
+        response.set_status(403, "Forbidden")
+        response.text("naughtyyyy boyyyy")
+        handler.request.sendall(response.to_data())
+        return
+
+    #delete the message
+    chat_collection.delete_one({"id" : message_id})
+    response.set_status(200, "OK")
+    response.text("you deleted your message message")
+    handler.request.sendall(response.to_data())
+
 
 
 

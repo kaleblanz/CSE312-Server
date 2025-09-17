@@ -17,7 +17,10 @@ db = mongo_client["cse312"]
 
 chat_collection = db["chat"]
 
-'''
+"""
 all = chat_collection.find_one({"me":"ligzzzz"})
-print(all)
-'''
+print(type(all))
+if all is None:
+    print("all is none")
+
+"""

@@ -93,6 +93,13 @@ def create_message_route(request, handler):
     #print(f"request.body:{body_of_request}      type:{type(request.body.decode())}")
     #print(f"content_of_request:{content_of_request}")
 
+    """
+    print("all data in create:")
+    all_data = chat_collection.find({})
+    for data in all_data:
+        print(data)
+"""
+
 
     if len(request_cookies) == 0:
         #print("inside first text")
@@ -101,6 +108,12 @@ def create_message_route(request, handler):
         uuid_cookie_value = str(uuid.uuid4())
         response.cookies({"session": uuid_cookie_value})
         message_dict = {"author": uuid_author_id, "id": uuid_cookie_value, "content": content_of_request, "updated": False}
+        chat_collection.insert_one(message_dict)
+    elif chat_collection.find_one({"id": request_cookies['session']}) is None:
+        #true for if a user sends a msg on docker, but then trys to send one on local
+        uuid_cookie_value = str(uuid.uuid4())
+        response.cookies({"session": uuid_cookie_value})
+        message_dict = {"author": uuid_author_id, "id": uuid_cookie_value, "content": content_of_request,"updated": False}
         chat_collection.insert_one(message_dict)
     else:
         #print("inside NOT first text")
@@ -140,7 +153,7 @@ def get_message_route(request, handler):
 
     for data in all_data:
         data.pop("_id")
-        print(f"data inside get_message_route: {data}")
+        #print(f"data inside get_message_route: {data}")
         if "content" in data:
             data["content"] = data["content"].replace("&","&amp;")
             data["content"] = data["content"].replace("<", "&lt;")
@@ -277,6 +290,11 @@ def delete_message_route(request, handler):
     #the message dict that holds the data of the specific message trying to be deleted
     old_message_dict = chat_collection.find_one({"id" : message_id})
     print(f"old_message_dict: {old_message_dict}")
+    if old_message_dict is None or active_user_prev_message is None:
+        response.set_status(403, "Forbidden")
+        response.text("can't delete")
+        handler.request.sendall(response.to_data())
+        return
 
     #if the 2 author id's dont =, they are different users and return error
     if old_message_dict['author'] != active_user_prev_message["author"]:

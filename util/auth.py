@@ -118,7 +118,7 @@ def main():
     assert validate_password("dJKJLASD&#@&_*") == False
     assert validate_password("hjOP%^(0") == True
     assert validate_password("pb!@#$%^&(()_-=das#@nkn12@31%43212A") == True
-
+    assert validate_password("Cuse2003$") == True
 
 if __name__ == "__main__":
     main()

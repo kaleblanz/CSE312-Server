@@ -7,6 +7,7 @@ from util.database import chat_collection
 from util.database import user_collection
 from util.auth import extract_credentials,validate_password
 import bcrypt
+import hashlib
 
 def render_index_html(request, handler):
     response = Response()
@@ -317,17 +318,18 @@ def delete_message_route(request, handler):
 
 
 def post_registration_route(request, handler):
-    print("inside post_registration_route")
+    #print("inside post_registration_route")
     username,password = extract_credentials(request)
-    print(f"username:{username}")
-    print(f"password:{password}")
+    #print(f"username:{username}")
+    #print(f"password:{password}")
     is_password_valid = validate_password(password)
-    print(f"is_password_valid:{is_password_valid}")
+    #print(f"is_password_valid:{is_password_valid}")
     if is_password_valid == False:
         response = Response()
         response.set_status(400, "Bad Request")
         response.text("your password does not meet the criteria")
         handler.request.sendall(response.to_data())
+        return
     #if the password is valid
     #store the username and a salted hash of the password in DB
     #when a user registers, generate a unique id like how chat messages do
@@ -340,7 +342,7 @@ def post_registration_route(request, handler):
 
 
 
-    user_info = {"username":username, "password":hash_pass, "id": str(uuid.uuid4())}
+    user_info = {"username":username, "password":hash_pass, "id": str(uuid.uuid4()), "auth_token":""}
     print(f"user info:{user_info}")
 
     user_collection.insert_one(user_info)
@@ -354,7 +356,61 @@ def post_registration_route(request, handler):
 
 
 def post_login_route(request, handler):
+    """
+    *if the salted hash of the password matches what I have in DB, the user is authenticated
+
+    *when a user logs in, set authentication token called "auth_token" as a cookie with HttpOnly directive (set a max age)
+    * store a hash of this auth_token in my DB so we can verify on subsequent requests
+
+    * if login is success -> response with 200 code, o/w response with 400 code
+    """
+    response = Response()
     print("inside post_login_route")
+    username,entered_password = extract_credentials(request)
+    print(f"username:{username}")
+    print(f"password:{entered_password}")
+
+    #find the user's account
+    user = user_collection.find_one({"username":username})
+    print(f"user:{user}")
+
+    #if username does not exist in the DB
+    if user is None:
+        response.set_status(400, "Bad Request")
+        response.text("username does not exist")
+        handler.request.sendall(response.to_data())
+        return
+
+    #compare the entered password with user's salted hash password in our DB
+    #result_bool is true -> passwords are the same, False->passwords do not match
+    result_bool = bcrypt.checkpw(entered_password.encode(),user["password"])
+    print(f"result_bool:{result_bool}")
+    #return 400 because the passwords do not match
+    if result_bool == False:
+        response.set_status(400, "Bad Request")
+        response.text("passwords do not match")
+        handler.request.sendall(response.to_data())
+        return
+
+    #create our authentication token
+    auth_token = str(uuid.uuid4())
+    #add a cookie that is our auth token with the HttpOnly and max age directive
+    response.cookies({"auth_token":auth_token + "; HttpOnly; Max-Age=7200"})
+    print(f"response.var_cookies:{response.var_cookies}")
+
+    #hash the auth token and update the users DB
+    hashed_auth_token = hashlib.sha256(auth_token.encode()).hexdigest()
+    print(f"hashed_auth_token:{hashed_auth_token}")
+    #add the hashed auth_token to the users account
+    result = user_collection.update_one({"username":user},{"$set":{"auth_token":hashed_auth_token}})
+    print(f"result about update:{result}")
+    #result about update:UpdateResult({'n': 0, 'nModified': 0, 'ok': 1.0, 'updatedExisting': False}, acknowledged=True)
+
+    response.set_status(200, "OK")
+    response.text("you are now authenticated")
+    handler.request.sendall(response.to_data())
+
+
 
 
 def get_logout_route(request, handler):
@@ -364,19 +420,27 @@ def get_logout_route(request, handler):
 
 """
 def main():
-    old_password = "abc"
-    new_password = "abc"
-
+    #old_password = "abc"
+    #new_password = "abc"
     #generate salt
-    salt = bcrypt.gensalt()
-    print(f"salt:{salt}")
+    #salt = bcrypt.gensalt()
+    #print(f"salt:{salt}")
 
     #hash the password
-    hashed_pass = bcrypt.hashpw(old_password.encode(),salt)
-    print(f"hashed_pass:{hashed_pass}")
+    #hashed_pass = bcrypt.hashpw(old_password.encode(),salt)
+    #print(f"hashed_pass:{hashed_pass}")
 
-    result = bcrypt.checkpw(new_password.encode(),hashed_pass)
-    print(f"result:{result}")
+    #result = bcrypt.checkpw(new_password.encode(),hashed_pass)
+    #print(f"result:{result}")
+
+    auth_token = "d8ahdbs(D80"
+    hash_auth = hashlib.sha256(auth_token.encode()).hexdigest()
+    print(f"hashauth:{hash_auth}")
+
+    auth_token2 = "d8ahdbs(D80"
+    hash_auth2 = hashlib.sha256(auth_token2.encode()).hexdigest()
+    print(f"hashauth:{hash_auth2}")
+
 
 
 

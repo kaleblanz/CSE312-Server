@@ -19,10 +19,14 @@ chat_collection = db["chat"]
 
 user_collection = db["users"]
 
-"""
-all = chat_collection.find_one({"me":"ligzzzz"})
-print(type(all))
-if all is None:
-    print("all is none")
+test_collection = db["test_collection"]
 
+
+"""
+test_collection.insert_one({"name":"kaleb","age":"123213"})
+print(test_collection.find_one({}))
+result = test_collection.update_one({"name":"kaleb"},{"$set":{"age":"213321"}})
+#UpdateResult({'n': 1, 'nModified': 1, 'ok': 1.0, 'updatedExisting': True}, acknowledged=True)
+print(test_collection.find_one({}))
+print(result)
 """

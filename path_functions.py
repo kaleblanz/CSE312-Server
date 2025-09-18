@@ -402,7 +402,7 @@ def post_login_route(request, handler):
     hashed_auth_token = hashlib.sha256(auth_token.encode()).hexdigest()
     print(f"hashed_auth_token:{hashed_auth_token}")
     #add the hashed auth_token to the users account
-    result = user_collection.update_one({"username":user},{"$set":{"auth_token":hashed_auth_token}})
+    result = user_collection.update_one({"username":username},{"$set":{"auth_token":hashed_auth_token}})
     print(f"result about update:{result}")
     #result about update:UpdateResult({'n': 0, 'nModified': 0, 'ok': 1.0, 'updatedExisting': False}, acknowledged=True)
 
@@ -414,7 +414,26 @@ def post_login_route(request, handler):
 
 
 def get_logout_route(request, handler):
+    """
+    * used by the logout button in frontend
+    * users auth_token must be removed from their cookies and invalidated by the server
+    * to remove a cookie, set a cookie with the same name and max-age of 0
+    """
     print("inside get_logout_route")
+    print(f"request.cookies:{request.cookies}")
+    print(f"request.path:{request.path}")
+    print(f"request.body:{request.body}")
+
+    response = Response()
+    #set the auth_token of the user to expire
+    response.cookies({"auth_token":"L; Max-Age=0"})
+    response.set_status(302,"Found")
+    response.headers({"Location":"/"})
+    handler.request.sendall(response.to_data())
+
+
+
+
 
 
 

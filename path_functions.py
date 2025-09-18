@@ -4,6 +4,9 @@ import json
 import uuid
 
 from util.database import chat_collection
+from util.database import user_collection
+from util.auth import extract_credentials,validate_password
+import bcrypt
 
 def render_index_html(request, handler):
     response = Response()
@@ -312,3 +315,71 @@ def delete_message_route(request, handler):
 
 
 
+
+def post_registration_route(request, handler):
+    print("inside post_registration_route")
+    username,password = extract_credentials(request)
+    print(f"username:{username}")
+    print(f"password:{password}")
+    is_password_valid = validate_password(password)
+    print(f"is_password_valid:{is_password_valid}")
+    if is_password_valid == False:
+        response = Response()
+        response.set_status(400, "Bad Request")
+        response.text("your password does not meet the criteria")
+        handler.request.sendall(response.to_data())
+    #if the password is valid
+    #store the username and a salted hash of the password in DB
+    #when a user registers, generate a unique id like how chat messages do
+
+    #generate the salt
+    salt = bcrypt.gensalt()
+
+    #hash the password
+    hash_pass = bcrypt.hashpw(password.encode(),salt)
+
+
+
+    user_info = {"username":username, "password":hash_pass, "id": str(uuid.uuid4())}
+    print(f"user info:{user_info}")
+
+    user_collection.insert_one(user_info)
+
+    response = Response()
+    response.set_status(200, "OK")
+    response.text("account registered, please go ahead and login")
+    handler.request.sendall(response.to_data())
+
+
+
+
+def post_login_route(request, handler):
+    print("inside post_login_route")
+
+
+def get_logout_route(request, handler):
+    print("inside get_logout_route")
+
+
+
+"""
+def main():
+    old_password = "abc"
+    new_password = "abc"
+
+    #generate salt
+    salt = bcrypt.gensalt()
+    print(f"salt:{salt}")
+
+    #hash the password
+    hashed_pass = bcrypt.hashpw(old_password.encode(),salt)
+    print(f"hashed_pass:{hashed_pass}")
+
+    result = bcrypt.checkpw(new_password.encode(),hashed_pass)
+    print(f"result:{result}")
+
+
+
+if __name__ == "__main__":
+    main()
+"""

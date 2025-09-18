@@ -17,6 +17,8 @@ db = mongo_client["cse312"]
 
 chat_collection = db["chat"]
 
+user_collection = db["users"]
+
 """
 all = chat_collection.find_one({"me":"ligzzzz"})
 print(type(all))

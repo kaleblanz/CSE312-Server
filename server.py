@@ -44,6 +44,30 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         self.router.add_route("DELETE",f"/api/chats/." ,delete_message_route)
 
 
+        #HW 2 ROUTES:
+        #render all html routes for hw2:
+        #render the html register page
+        self.router.add_route("GET", "/register", render_index_html)
+        # render the html login page
+        self.router.add_route("GET", "/login", render_index_html)
+        # render html settings page
+        self.router.add_route("GET","/settings", render_index_html)
+        #render search-users html
+        self.router.add_route("GET","/search-users",render_index_html)
+
+        #add the route for Registration
+        self.router.add_route("POST", "/register", post_registration_route)
+
+        #add the route for login
+        self.router.add_route("POST", "/login", post_login_route)
+
+        #add the route for logout
+        self.router.add_route("GET", "/logout", get_logout_route)
+
+
+
+
+
 
         super().__init__(request, client_address, server)
 

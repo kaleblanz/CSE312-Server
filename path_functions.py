@@ -80,11 +80,7 @@ def render_js(request, handler):
 
 
 def create_message_route(request, handler):
-    """
-    print("we are in the create_message_route function")
-    uu = str(uuid.uuid4())
-    print(f"value of uu: {uu}   type of uu: {type(uu)}")
-    """
+
     response = Response()
 
     uuid_author_id = str(uuid.uuid4())
@@ -94,15 +90,7 @@ def create_message_route(request, handler):
     body_of_request = request.body.decode()
     body_of_request = json.loads(body_of_request)
     content_of_request = body_of_request["content"]
-    #print(f"request.body:{body_of_request}      type:{type(request.body.decode())}")
-    #print(f"content_of_request:{content_of_request}")
 
-    """
-    print("all data in create:")
-    all_data = chat_collection.find({})
-    for data in all_data:
-        print(data)
-"""
 
 
     if len(request_cookies) == 0:
@@ -425,8 +413,18 @@ def get_logout_route(request, handler):
     print(f"request.body:{request.body}")
 
     response = Response()
+    #print(f"extract_credentials(request):{extract_credentials(request)}")
     #set the auth_token of the user to expire
+    if "auth_token" in request.cookies:
+        #get the auth_token
+        auth_token = request.cookies["auth_token"]
+        #hash the auth token with sha256
+        hash_auth_token = hashlib.sha256(auth_token.encode()).hexdigest()
+        user_collection.update_one({"auth_token": hash_auth_token}, {"$set": {"auth_token": ""}})
+
+
     response.cookies({"auth_token":"L; Max-Age=0"})
+
     response.set_status(302,"Found")
     response.headers({"Location":"/"})
     handler.request.sendall(response.to_data())

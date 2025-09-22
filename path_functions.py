@@ -607,6 +607,7 @@ def update_profile_route(request, handler):
     username = username.split("=")[1]
     password = password.split("=")[1]
     password = password.lstrip().rstrip()
+    username = username.lstrip().rstrip()
 
 
     #update just the username
@@ -617,10 +618,19 @@ def update_profile_route(request, handler):
         response.set_status(200, "OK")
         handler.request.sendall(response.to_data())
         return
+    #the password is invalid
     elif validate_password(password) == False:
         #true when the password doesn't meet the criteira
         response.text("your password does not meet the criteria")
         response.set_status(400,"Bad Request")
+        handler.request.sendall(response.to_data())
+        return
+    #the usernane is already taken
+    elif (user_collection.find_one({"username": username})) is not None:
+        # search if username is already taken
+        response = Response()
+        response.set_status(400, "Bad Request")
+        response.text("username is already taken")
         handler.request.sendall(response.to_data())
         return
     else:

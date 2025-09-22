@@ -322,6 +322,29 @@ def delete_message_route(request, handler):
     message_id = request.path.split("/")[3]
     print(f"message_id: {message_id}")
 
+    #the user is authenticated who is trying to delete
+    if "auth_token" in request_cookies:
+        hash_auth = hashlib.sha256(request_cookies["auth_token"].encode()).hexdigest()
+        username = user_collection.find_one({"auth_token" : hash_auth})["username"]
+        print(f"username trying to in delete:{username}")
+        message_trying_to_be_deleted = chat_collection.find_one({"id" : message_id})
+        #print(f"message_trying_to_be_deleted:{message_trying_to_be_deleted}")
+        #true when the 2 users DONT have the same name
+        if username != message_trying_to_be_deleted["author"]:
+            response.set_status(403, "Forbidden")
+            response.text("you are authenticated, but not your text")
+            handler.request.sendall(response.to_data())
+            return
+        else:
+            #this is the users text and it will be deleted
+            chat_collection.delete_one({"id" : message_id})
+            response.set_status(200, "OK")
+            response.text("you deleted your authenticated text")
+            handler.request.sendall(response.to_data())
+            return
+
+
+
     #if a user trys to delete without having a cookie
     if user_cookie_trying_to_delete is None:
         response.set_status(403, "Forbidden")

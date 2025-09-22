@@ -603,12 +603,7 @@ def update_profile_route(request, handler):
     """
     response = Response()
     hash_auth = hashlib.sha256(request.cookies["auth_token"].encode()).hexdigest()
-    username,password = request.body.decode().split("&")
-    username = username.split("=")[1]
-    password = password.split("=")[1]
-    password = password.lstrip().rstrip()
-    username = username.lstrip().rstrip()
-
+    username,password = extract_credentials(request)
     #update just the username
     #if len(password) == 0:
         #update the username only

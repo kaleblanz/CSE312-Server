@@ -1,3 +1,5 @@
+from util.request import Request
+
 alphanumeric = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 lower_case = "abcdefghijklmnopqrstuvwxyz"
 upper_case = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -31,7 +33,33 @@ def extract_credentials(request):
     #print(f"username:{username}")
     #print(f"password:{password}")
 
-    password = password.replace("%21","!")
+    password = password.replace("%21", "!")
+    password = password.replace("%40", "@")
+    password = password.replace("%23", "#")
+    password = password.replace("%24", "$")
+    password = password.replace("%28", "(")
+    password = password.replace("%29", ")")
+    password = password.replace("%26", "&")
+
+    password = password.replace("%5E", "^")
+    password = password.replace("%5e", "^")
+    password = password.replace("%2D", "-")
+    password = password.replace("%2d", "-")
+    password = password.replace("%5F", "_")
+    password = password.replace("%5f", "_")
+    password = password.replace("%3D", "=")
+    password = password.replace("%3d", "=")
+
+
+    password = password.replace("%25", "%")
+
+    #print(f"password:{password}")
+    return [username,password]
+
+def main():
+    password = "25%25"
+
+    password = password.replace("%21", "!")
     password = password.replace("%40", "@")
     password = password.replace("%23", "#")
     password = password.replace("%24", "$")
@@ -44,8 +72,12 @@ def extract_credentials(request):
     password = password.replace("%3D", "=")
     password = password.replace("%26", "&")
 
-    #print(f"password:{password}")
-    return [username,password]
+    print(password)
+
+if __name__ == "__main__":
+    main()
+
+
 
 def validate_password(password):
     """
@@ -108,7 +140,6 @@ def validate_password(password):
 
     #all 6 cases passed
     return True
-
 
 """
 def main():

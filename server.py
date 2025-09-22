@@ -70,6 +70,9 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         #add route for filter and search users
         self.router.add_route("GET" , "/api/users/search" , filer_search_users_route)
 
+        #add route to update profile
+        self.router.add_route("POST", "/api/users/settings", update_profile_route)
+
 
 
 

@@ -583,6 +583,53 @@ def filer_search_users_route(request, handler):
         response.set_status(200,"OK")
         handler.request.sendall(response.to_data())
 
+def update_profile_route(request, handler):
+    """
+    * receive a request containing a username and password in same format as reg/login endpoints
+    * when you receive the request, update the users username and password to the provided values
+
+    * endpoint must pass valid_password() for new password (return 400 AND DON'T UPDATE)
+
+    * empty password means only change username
+    """
+    response = Response()
+    hash_auth = hashlib.sha256(request.cookies["auth_token"].encode()).hexdigest()
+    username,password = request.body.decode().split("&")
+    username = username.split("=")[1]
+    password = password.split("=")[1]
+
+    user_info = user_collection.find_one({"auth_token" : hash_auth})
+
+    #update just the username
+    if len(password) == 0:
+        #update the username only
+        user_collection.update_one({"auth_token" : hash_auth}, {"$set" : {"username" : username}})
+        response.text("updated your username")
+        response.set_status(200, "OK")
+        handler.request.sendall(response.to_data())
+        return
+    elif validate_password(password) == False:
+        #true when the password doesn't meet the criteira
+        response.text("your password does not meet the criteria")
+        response.set_status(400,"Bad Request")
+        handler.request.sendall(response.to_data())
+        return
+    else:
+        #new password is valid
+        #gen a new salt
+        salt = bcrypt.gensalt()
+        #salted hash of the new passowrd
+        salt_hashed_new_password = bcrypt.hashpw(password.encode(),salt)
+
+        user_collection.update_one({"auth_token" : hash_auth}, {"$set" : {"username" : username, "password" : salt_hashed_new_password}})
+        response.text("updated your username and password")
+        response.set_status(200, "OK")
+        handler.request.sendall(response.to_data())
+        return
+
+
+
+
 
 
 

@@ -399,6 +399,15 @@ def post_registration_route(request, handler):
     #store the username and a salted hash of the password in DB
     #when a user registers, generate a unique id like how chat messages do
 
+    #search if username is already taken
+    user = user_collection.find_one({"username" : username})
+    if user is not None:
+        response = Response()
+        response.set_status(400, "Bad Request")
+        response.text("username is already taken")
+        handler.request.sendall(response.to_data())
+        return
+
     #generate the salt
     salt = bcrypt.gensalt()
 
@@ -597,8 +606,8 @@ def update_profile_route(request, handler):
     username,password = request.body.decode().split("&")
     username = username.split("=")[1]
     password = password.split("=")[1]
+    password = password.lstrip().rstrip()
 
-    user_info = user_collection.find_one({"auth_token" : hash_auth})
 
     #update just the username
     if len(password) == 0:
@@ -620,8 +629,9 @@ def update_profile_route(request, handler):
         salt = bcrypt.gensalt()
         #salted hash of the new passowrd
         salt_hashed_new_password = bcrypt.hashpw(password.encode(),salt)
-
-        user_collection.update_one({"auth_token" : hash_auth}, {"$set" : {"username" : username, "password" : salt_hashed_new_password}})
+        print(f"passworddd:{password}")
+        result = user_collection.update_one({"auth_token" : hash_auth}, {"$set" : {"username" : username, "password" : salt_hashed_new_password}})
+        print(f"reesult in updateprofile:{result}")
         response.text("updated your username and password")
         response.set_status(200, "OK")
         handler.request.sendall(response.to_data())

@@ -611,26 +611,19 @@ def update_profile_route(request, handler):
 
 
     #update just the username
-    if len(password) == 0:
+    #if len(password) == 0:
         #update the username only
-        user_collection.update_one({"auth_token" : hash_auth}, {"$set" : {"username" : username}})
-        response.text("updated your username")
-        response.set_status(200, "OK")
-        handler.request.sendall(response.to_data())
-        return
+    #    user_collection.update_one({"auth_token" : hash_auth}, {"$set" : {"username" : username}})
+    #    response.text("updated your username")
+    #    response.set_status(200, "OK")
+    #    handler.request.sendall(response.to_data())
+    #    return
+
     #the password is invalid
-    elif validate_password(password) == False:
+    if validate_password(password) == False:
         #true when the password doesn't meet the criteira
         response.text("your password does not meet the criteria")
         response.set_status(400,"Bad Request")
-        handler.request.sendall(response.to_data())
-        return
-    #the usernane is already taken
-    elif (user_collection.find_one({"username": username})) is not None:
-        # search if username is already taken
-        response = Response()
-        response.set_status(400, "Bad Request")
-        response.text("username is already taken")
         handler.request.sendall(response.to_data())
         return
     else:

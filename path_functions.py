@@ -91,21 +91,45 @@ def create_message_route(request, handler):
     body_of_request = json.loads(body_of_request)
     content_of_request = body_of_request["content"]
 
+    #handle authenticated users
+    if "auth_token" in request_cookies:
+        #user is authenticated
+        uuid_new_id = str(uuid.uuid4())
+        print(f"request_cookies[auth_token]:{request_cookies['auth_token']}")
+        hash_auth_token = hashlib.sha256( (request_cookies['auth_token']).encode()).hexdigest()
+        user = user_collection.find_one({"auth_token": hash_auth_token } )
+        print(f"user:{user}")
+        message_dict = {"author": user["username"], "id": uuid_new_id, "content": content_of_request,"updated": False}
+        print(f"message_dict:{message_dict}")
+        chat_collection.insert_one(message_dict)
 
+        response.set_status(200, "OK")
+        response.text("response was sent for create_message_route")
+        response.headers({"Content-Type": "text/html; charset=utf-8"})
+        handler.request.sendall(response.to_data())
+        return
 
+    #user is a guest, give them their session cookie
     if len(request_cookies) == 0:
         #print("inside first text")
         #if this is true: this is the first time the user has sent a text (so we create their message dict)
         #add a session id for the new user
         uuid_cookie_value = str(uuid.uuid4())
-        response.cookies({"session": uuid_cookie_value})
-        message_dict = {"author": uuid_author_id, "id": uuid_cookie_value, "content": content_of_request, "updated": False}
+        response.cookies({"session": uuid_cookie_value + "; Path=/"})
+        # store the hashed session in the db
+        hash_session_cookie = hashlib.sha256(uuid_cookie_value.encode()).hexdigest()
+
+        message_dict = {"author": uuid_author_id, "id": uuid_cookie_value, "content": content_of_request, "updated": False, "session" : hash_session_cookie}
         chat_collection.insert_one(message_dict)
+    #docker/local error
     elif chat_collection.find_one({"id": request_cookies['session']}) is None:
         #true for if a user sends a msg on docker, but then trys to send one on local
         uuid_cookie_value = str(uuid.uuid4())
-        response.cookies({"session": uuid_cookie_value})
-        message_dict = {"author": uuid_author_id, "id": uuid_cookie_value, "content": content_of_request,"updated": False}
+        response.cookies({"session": uuid_cookie_value+ "; Path=/"})
+        #store the hashed session in the db
+        hash_session_cookie = hashlib.sha256(uuid_cookie_value.encode()).hexdigest()
+
+        message_dict = {"author": uuid_author_id, "id": uuid_cookie_value, "content": content_of_request, "updated": False,"session": hash_session_cookie}
         chat_collection.insert_one(message_dict)
     else:
         #print("inside NOT first text")
@@ -118,7 +142,9 @@ def create_message_route(request, handler):
         #prev_id = prev_message_from_user["id"]
         prev_author_id = prev_message_from_user["author"]
         uuid_new_id = str(uuid.uuid4())
-        message_dict = {"author": prev_author_id, "id": uuid_new_id, "content": content_of_request, "updated": False}
+        #hash_session_cookie = hashlib.sha256(prev_message_from_user["session"].encode()).hexdigest()
+        #session cookie is already hashed
+        message_dict = {"author": prev_author_id, "id": uuid_new_id, "content": content_of_request, "updated": False, "session":prev_message_from_user["session"]}
         chat_collection.insert_one(message_dict)
 
 
@@ -126,7 +152,6 @@ def create_message_route(request, handler):
     response.set_status(200,"OK")
     response.text("response was sent for create_message_route")
     response.headers({"Content-Type": "text/html; charset=utf-8"})
-    #response.headers({"Content-Length": len("response was sent for create_message_route")})
     handler.request.sendall(response.to_data())
 
 
@@ -358,6 +383,8 @@ def post_login_route(request, handler):
     print(f"username:{username}")
     print(f"password:{entered_password}")
 
+    #print(f"request.path: {request.path}         request.body: {request.body}")
+
     #find the user's account
     user = user_collection.find_one({"username":username})
     print(f"user:{user}")
@@ -368,6 +395,8 @@ def post_login_route(request, handler):
         response.text("username does not exist")
         handler.request.sendall(response.to_data())
         return
+
+
 
     #compare the entered password with user's salted hash password in our DB
     #result_bool is true -> passwords are the same, False->passwords do not match
@@ -383,7 +412,7 @@ def post_login_route(request, handler):
     #create our authentication token
     auth_token = str(uuid.uuid4())
     #add a cookie that is our auth token with the HttpOnly and max age directive
-    response.cookies({"auth_token":auth_token + "; HttpOnly; Max-Age=7200"})
+    response.cookies({"auth_token":auth_token + "; HttpOnly; Max-Age=7200; Path=/"})
     print(f"response.var_cookies:{response.var_cookies}")
 
     #hash the auth token and update the users DB
@@ -394,6 +423,28 @@ def post_login_route(request, handler):
     print(f"result about update:{result}")
     #result about update:UpdateResult({'n': 0, 'nModified': 0, 'ok': 1.0, 'updatedExisting': False}, acknowledged=True)
 
+    """
+    the user is now authenticated, we will now switch all of their messages
+    from their random name to their user name
+    and delete their session cookie and now they only have the auth cookie
+    """
+    if "session" in request.cookies:
+        #print("HERE 1")
+        request_session = request.cookies["session"]
+        #get all of the old geusts texts
+        hash_request_session = hashlib.sha256(request_session.encode()).hexdigest()
+        old_msg_from_session = chat_collection.find_one({"session" : hash_request_session})
+        if old_msg_from_session is not None:
+            #print("HERE 2")
+            guest_username = old_msg_from_session['author']
+            #print(f"old_msg_from_session:{old_msg_from_session}")
+            #print(f"guest_username:{guest_username}     username:{username}")
+            all_user_old_msg = chat_collection.update_many({"author": guest_username } , {"$set" : {"author" : username}})
+            #print(f"alluseroldmsg:{all_user_old_msg}")
+
+
+    # delete the session cookie now that we are authenticated
+    response.cookies({"session": "L; Max-Age=0"})
     response.set_status(200, "OK")
     response.text("you are now authenticated")
     handler.request.sendall(response.to_data())

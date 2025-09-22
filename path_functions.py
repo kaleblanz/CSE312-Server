@@ -609,6 +609,13 @@ def update_profile_route(request, handler):
     password = password.lstrip().rstrip()
     username = username.lstrip().rstrip()
 
+    user = user_collection.find_one({"username" : username})
+    if user is not None:
+        response.text("username is already taken")
+        response.set_status(400, "Bad Request")
+        handler.request.sendall(response.to_data())
+        return
+
 
     #update just the username
     #if len(password) == 0:

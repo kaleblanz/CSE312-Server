@@ -207,8 +207,8 @@ def update_message_route(request, handler):
     #get the token from old message
     request_token = split_path[3]
 
-    print(f"split_path: {split_path}")
-    print(f"token from prev message: {request_token}")
+    #print(f"split_path: {split_path}")
+    #print(f"token from prev message: {request_token}")
 
     #find a message with the same id as the token
     prev_message_from_user = chat_collection.find_one({"id" : request_token})
@@ -221,8 +221,8 @@ def update_message_route(request, handler):
         #find the id of the old message
         old_message_author_id = prev_message_from_user["author"]
 
-        print(f"old_message_author_id: {old_message_author_id}")
-        print(f"request_cookies: {request.cookies}")
+        #print(f"old_message_author_id: {old_message_author_id}")
+        #print(f"request_cookies: {request.cookies}")
 
         #handles the case of where a user is trying to edit before sending their first text
         if len(request.cookies) == 0:
@@ -231,38 +231,67 @@ def update_message_route(request, handler):
             handler.request.sendall(response.to_data())
             return
 
-        #the current cookie of the user trying to edit
-        current_user_cookie = request.cookies["session"]
+        #guest trying to edit their chat:
+        if "session" in request.cookies:
+            #the current cookie of the user trying to edit
+            current_user_cookie = request.cookies["session"]
 
-        #the author_id of the user who made the edit request
-        current_user_author_id = chat_collection.find_one({"id" : current_user_cookie})["author"]
+            #the author_id of the user who made the edit request
+            current_user_author_id = chat_collection.find_one({"id" : current_user_cookie})["author"]
 
-        #print(f"current_user_author_id: {current_user_author_id}")
+            #print(f"current_user_author_id: {current_user_author_id}")
 
-        #return 403 if the old author and current author don't match
-        if old_message_author_id != current_user_author_id:
-            response.set_status(403, "Forbidden")
-            response.text("this ain't your text homie")
+            #return 403 if the old author and current author don't match
+            if old_message_author_id != current_user_author_id:
+                response.set_status(403, "Forbidden")
+                response.text("this ain't your text homie")
+                handler.request.sendall(response.to_data())
+                return
+
+            #print(f"request_body: {request.body}")
+            #the new info we want to replace it with
+            new_content_of_request = json.loads(request.body.decode())['content']
+
+            #update the collection with the id of request token (id of the message we want to change)
+            chat_collection.update_one({"id":request_token}, {"$set": {"content": new_content_of_request, "updated":True}})
+
+            #send a 200 response
+            response.set_status(200, "OK")
+            response.text("you edited your message")
             handler.request.sendall(response.to_data())
             return
 
-        #print(f"request_body: {request.body}")
-        #the new info we want to replace it with
-        new_content_of_request = json.loads(request.body.decode())['content']
+        # authenticated user trying to edit their chat:
+        if "auth_token" in request.cookies:
+            # the current cookie of the user trying to edit
+            current_user_cookie = request.cookies["auth_token"]
+            print(f"current_user_cookie:{current_user_cookie}")
 
+            # the author_id of the user who made the edit request
+            hash_auth = hashlib.sha256(current_user_cookie.encode()).hexdigest()
+            current_user_name = user_collection.find_one({"auth_token": hash_auth})["username"]
 
-        #new_content_of_request = new_content_of_request.replace("&", "&amp;")
-        #new_content_of_request = new_content_of_request.replace("<", "&lt;")
-        #new_content_of_request = new_content_of_request.replace(">", "&gt;")
+            # print(f"current_user_author_id: {current_user_author_id}")
 
-        #update the collection with the id of request token (id of the message we want to change)
-        chat_collection.update_one({"id":request_token}, {"$set": {"content": new_content_of_request, "updated":True}})
+            # return 403 if the old author and current author don't match
+            if old_message_author_id != current_user_name:
+                response.set_status(403, "Forbidden")
+                response.text("this ain't your text homie")
+                handler.request.sendall(response.to_data())
+                return
 
-        #send a 200 response
-        response.set_status(200, "OK")
-        response.text("you edited your message")
-        handler.request.sendall(response.to_data())
-        return
+            # print(f"request_body: {request.body}")
+            # the new info we want to replace it with
+            new_content_of_request = json.loads(request.body.decode())['content']
+
+            # update the collection with the id of request token (id of the message we want to change)
+            chat_collection.update_one({"id": request_token}, {"$set": {"content": new_content_of_request, "updated": True}})
+
+            # send a 200 response
+            response.set_status(200, "OK")
+            response.text("you edited your message")
+            handler.request.sendall(response.to_data())
+            return
 
     else:
         response.set_status(403, "Forbidden")

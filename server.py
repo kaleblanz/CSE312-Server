@@ -67,6 +67,8 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         #add route for @me that display username
         self.router.add_route("GET", "/api/users/@me", return_profile_route)
 
+        #add route for filter and search users
+        self.router.add_route("GET" , "/api/users/search" , filer_search_users_route)
 
 
 

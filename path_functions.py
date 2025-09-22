@@ -553,6 +553,38 @@ def return_profile_route(request, handler):
         response.json({})
         handler.request.sendall(response.to_data())
 
+def filer_search_users_route(request, handler):
+    response = Response()
+    print(f"request.body:{request.body}")
+    print(f"request.path:{request.path}")
+    user = request.path.split("/")[3].split("?")[1]
+    print(f"user:{user}")
+    input_name = user.split("=")[1]
+
+    #return empty if no username was given
+    if len(input_name) == 0:
+        response.set_status(200,"OK")
+        response.json({"users" : []})
+        handler.request.sendall(response.to_data())
+        return
+    else:
+        list_of_user_dict = []
+        #get all users in the DB
+        all_users = user_collection.find({})
+        for user in all_users:
+            username = user["username"]
+            id = user["id"]
+            #TRUE if the username starts with input string
+            if username.startswith(input_name):
+                user_dict = {"id" : id,"username" : username}
+                list_of_user_dict.append(user_dict)
+        output = {"users" : list_of_user_dict}
+        response.json(output)
+        response.set_status(200,"OK")
+        handler.request.sendall(response.to_data())
+
+
+
 
 
 """

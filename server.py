@@ -64,6 +64,8 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         #add the route for logout
         self.router.add_route("GET", "/logout", get_logout_route)
 
+        #add route for @me that display username
+        self.router.add_route("GET", "/api/users/@me", return_profile_route)
 
 
 

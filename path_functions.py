@@ -534,7 +534,24 @@ def get_logout_route(request, handler):
 
 
 
+def return_profile_route(request, handler):
+    response = Response()
+    request_cookies = request.cookies
+    if "auth_token" in request_cookies:
+        #user is authenticated
+        hash_auth = hashlib.sha256(request_cookies["auth_token"].encode()).hexdigest()
+        user_info = user_collection.find_one({"auth_token" : hash_auth})
 
+        response.set_status(200, "OK")
+        response.json({"username" : user_info["username"], "id" : user_info["id"]})
+        handler.request.sendall(response.to_data())
+
+    else:
+        #user is not authenticated
+        response.set_status(401, "Unauthorized")
+        #empty json object?
+        response.json({})
+        handler.request.sendall(response.to_data())
 
 
 

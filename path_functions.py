@@ -1,3 +1,6 @@
+from http.client import responses
+from pydoc_data.topics import topics
+
 from util.response import Response
 from util.request import Request
 import json
@@ -8,6 +11,18 @@ from util.database import user_collection
 from util.auth import extract_credentials,validate_password
 import bcrypt
 import hashlib
+
+#for totp 2FA
+import os
+import time
+import pyotp
+
+#for oauth 2.0
+import requests
+from dotenv import load_dotenv
+load_dotenv()
+
+
 
 def render_index_html(request, handler):
     response = Response()
@@ -439,6 +454,105 @@ def post_login_route(request, handler):
     * if login is success -> response with 200 code, o/w response with 400 code
     """
     response = Response()
+
+    #UPDATE OUR LOGIN ROUTE TO HANDLE 2FA TOTP
+    url_encoded_str = request.body.decode()
+    print(f"url_encoded_str:{url_encoded_str}")
+    username = url_encoded_str.split('&')[0].split('=')[1]
+    user_info = user_collection.find_one({"username" : username})
+    print(user_info)
+    # if the username has a secret field in the DB
+    #if true then it's a 2FA user
+    if "secret" in user_info:
+        print("INSIDE SECRET")
+        if "totpCode=" in url_encoded_str:
+            print("INSIDE IF")
+            # case 2 then the 2FA user tries to log in with the username, password and totp
+            split_url_encoded_str = url_encoded_str.split('&')
+            #create a new str with just the username and password
+            new_url = split_url_encoded_str[0] + "&" + split_url_encoded_str[1]
+            #totp code from the string
+            user_entered_totp_code = split_url_encoded_str[2].split("=")[1]
+
+            #change the request to just a username and password
+            request.body = new_url.encode()
+            #get the username and decoded password from the request
+            username,password = extract_credentials(request)
+
+            #check if the username and password match
+            result_bool = bcrypt.checkpw(password.encode(), user_info['password'])
+
+            if result_bool == False:
+                response.set_status(401, "Unauthorized")
+                response.text("your password is incorreect")
+                handler.request.sendall(response.to_data())
+                return
+
+            secret = user_info['secret']
+            #secret in users db
+            print(f"secret:{secret}")
+            current_otp = pyotp.TOTP(secret).now()
+            #the current otp value
+            print(f"Current OPT:{current_otp}")
+
+            if user_entered_totp_code == current_otp:
+                #the 2 values are equal and user will be authenticated
+
+                # create our authentication token
+                auth_token = str(uuid.uuid4())
+                # add a cookie that is our auth token with the HttpOnly and max age directive
+                response.cookies({"auth_token": auth_token + "; HttpOnly; Max-Age=7200; Path=/"})
+
+
+                # hash the auth token and update the users DB
+                hashed_auth_token = hashlib.sha256(auth_token.encode()).hexdigest()
+
+                # add the hashed auth_token to the users account
+                result = user_collection.update_one({"username": username}, {"$set": {"auth_token": hashed_auth_token}})
+
+
+                """
+                the user is now authenticated, we will now switch all of their messages
+                from their random name to their user name
+                and delete their session cookie and now they only have the auth cookie
+                """
+                if "session" in request.cookies:
+                    # print("HERE 1")
+                    request_session = request.cookies["session"]
+                    # get all of the old geusts texts
+                    hash_request_session = hashlib.sha256(request_session.encode()).hexdigest()
+                    old_msg_from_session = chat_collection.find_one({"session": hash_request_session})
+                    if old_msg_from_session is not None:
+                        guest_username = old_msg_from_session['author']
+                        all_user_old_msg = chat_collection.update_many({"author": guest_username},
+                                                                {"$set": {"author": username}})
+
+
+                # delete the session cookie now that we are authenticated
+                response.cookies({"session": "L; Max-Age=0"})
+
+                response.set_status(200, "OK")
+                response.text("you're now logged in with 2FA")
+                handler.request.sendall(response.to_data())
+                return
+            else:
+                response.set_status(401, "Unauthorized")
+                response.text("your OTP is incorrect")
+                handler.request.sendall(response.to_data())
+                return
+
+
+        else:
+            print("INSIDE ELSE")
+            # case 1 when the 2FA user tries to log in at first with just username and password
+            response.set_status(401, "Unauthorized")
+            response.text("Enter your 2FA Code")
+            handler.request.sendall(response.to_data())
+            return
+
+
+
+
     print("inside post_login_route")
     username,entered_password = extract_credentials(request)
     print(f"username:{username}")
@@ -637,6 +751,152 @@ def update_profile_route(request, handler):
 
 
 
+def totp_2fa_route(request, handler):
+    """
+    are we supposed to put pyotp in requirments.txt? docker stuff?
+    * return a JSON object in the format -> {"secret" : string}
+    * each time a user clicks "Regenerate 2FA" -> server is expected to generate a new secret
+    * secrets must be different for each user
+    * front end will generate a QR code from the secret
+    * user will then scan the QR
+
+    * when a user logs in with 2FA enabled -> expect them to provide TOTP code, username and password
+    * if no TOTP is provided (request only contains username and password) -> return a 401 response
+    * if a TOTP code is provided, verify this code while authenticating them
+    * if both TOTP code, username and password are valid -> log them in and authenticate the suer
+    """
+    print("we are INSIDE TOTP2FA")
+    print(f"request.body{request.body}")
+    print(f"request.headers:{request.headers}")
+    print(f"request.path:{request.path}")
+    response = Response()
+
+    # create our secret string
+    secret = pyotp.random_base32()
+
+    #get the auth token from the user and update the users info to store the secret
+    auth_token = request.cookies["auth_token"]
+    hash_auth = hashlib.sha256(auth_token.encode()).hexdigest()
+    user_collection.update_one({"auth_token" : hash_auth}, {"$set" : {"secret" : secret}})
+
+    #add our json object to our response object and send the response
+    secret_dict = {"secret" : secret}
+    response.json(secret_dict)
+    response.set_status(200,"OK")
+    #send our secret string
+    handler.request.sendall(response.to_data())
+
+
+
+def request_user_github_identity_route(request, handler):
+    #print(f"github_auth_route request.path:{request.path}")
+    #print(f"github_auth_route request.body:{request.body}")
+
+    print("INSIDE GITHUB AUTH ROUTE")
+    #url for requesting a users github identity
+    url = "https://github.com/login/oauth/authorize"
+    client_id = "?client_id="+os.getenv("GITHUB_CLIENT_ID")
+    redirect_uri = "&redirect_uri=" + "http://localhost:8080/authcallback"
+    scope = "&scope=user:email&scope=repo"
+    #params needed to make the redirect
+
+    #use a redirect for the user to send this to the gitHub api
+    response = Response()
+    response.set_status(302,"Found")
+    response.headers({"Location": url + client_id + redirect_uri + scope})
+    handler.request.sendall(response.to_data())
+
+    """
+    #request_users_github_identity = requests.get(url,params)
+    #print(f"request_users_github_identity:{request_users_github_identity}")
+    #print(f"request_users_github_identity.request.url:{request_users_github_identity.request.url}")
+    #print(f"request_users_github_identity.request.body:{request_users_github_identity.request.body}")
+    #print(f"request_users_github_identity.request.headers:{request_users_github_identity.request.headers}")
+    
+        params = {"client_id" : os.getenv("GITHUB_CLIENT_ID"),
+                  "redirect_uri" : "http://localhost:8080/authcallback",
+                  "scope" : "user:email,repo"}
+    """
+
+
+def code_for_access_code_github_route(request, handler):
+    """
+    if user accepts our requests of scopes, githHub redirects to this route
+    with a temporary code.
+    we will exchange this temp code with an access code
+    """
+    print("INSIDE access_code_github_route")
+    #print(f"access_code_github_route request.path:{request.path}")
+    #print(f"access_code_github_route request.body:{request.body}")
+    #i know i could have just split on the '=', but i feel it maybe could lead to a bug
+    code = request.path.split('?')[1].split('=')[1]
+    print(f"code:{code}")
+
+    #use the request from python to send the request from our server to gitHub server
+    url = "https://github.com/login/oauth/access_token"
+    client_id = os.getenv("GITHUB_CLIENT_ID")
+    client_secret = os.getenv("GITHUB_CLIENT_SECRET")
+    redirect_uri = "http://localhost:8080/authcallback"
+
+    #print(f"clientid:{client_id}")
+    #print(f"clientsecret:{client_secret}")
+
+    param = {
+        "client_id" : client_id,
+        "client_secret" : client_secret,
+        "redirect_uri" : redirect_uri,
+        "code" : code
+    }
+
+    github_redirect_back = requests.post(url=url,params=param)
+    print(f"github_redirect_back.text:{github_redirect_back.text}")
+    #we now have the access token
+    access_token = github_redirect_back.text.split('&')[0].split('=')[1]
+    #print(f"access token:{access_token}")
+
+    #use the access token to access the api
+    url = "https://api.github.com/user"
+    header = {"Authorization" : "Bearer " + access_token}
+    response = requests.get(url=url,headers=header)
+
+    #print(f"response:{response}")
+    #print(f"response.text:{response.text}")
+
+    # create our authentication token
+    auth_token = str(uuid.uuid4())
+    #create id
+    id = str(uuid.uuid4())
+    #insert the new user
+    print(f"splits:{response.text.split(':')}")
+    print(f"splits:{response.text.split(':')[1].split(',')[0]}")
+    #strip away the double quotes on each side
+    username = response.text.split(':')[1].split(',')[0].strip('"')
+
+    hash_auth = hashlib.sha256(auth_token.encode()).hexdigest()
+
+
+    #handle if username is already in DB?????
+    all_data = user_collection.find({})
+    #if the user has already signed in with github before
+    if username in all_data:
+        user_collection.update_one({"username":username}, {"$set" : {"auth_token" : hash_auth}})
+    else:
+        user_collection.insert_one({"username": username, "id" : id, "auth_token" : hash_auth, "access_token" : access_token})
+
+    response = Response()
+
+
+    # add a cookie that is our auth token with the HttpOnly and max age directive
+    response.cookies({"auth_token": auth_token + "; HttpOnly; Max-Age=7200; Path=/"})
+    # delete the session cookie now that we are authenticated
+    response.cookies({"session": "L; Max-Age=0"})
+    response.set_status(302, "Found")
+    response.headers({"Location": "/"})
+    handler.request.sendall(response.to_data())
+
+
+
+
 
 
 
@@ -665,8 +925,22 @@ def main():
     print(f"hashauth:{hash_auth2}")
 
 
+def ao1():
+
+    totp = pyotp.TOTP('base32secret3232')
+    print(totp.now())
+
+    print(totp.verify('847291'))
+    #time.sleep(30)
+    print(totp.verify('847291'))
+
+    totp = pyotp.TOTP("JBSWY3DPEHPK3PXP")
+    print("Current OTP:", totp.now())
+
+    print(f"secret:{pyotp.random_base32()}")
 
 
 if __name__ == "__main__":
-    main()
+    #main()
+    ao1()
 """

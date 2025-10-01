@@ -73,6 +73,16 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         #add route to update profile
         self.router.add_route("POST", "/api/users/settings", update_profile_route)
 
+        #HW2 AO 2FA TOTP
+        self.router.add_route("POST","/api/totp/enable", totp_2fa_route)
+
+        #HW2 AO OAuth 2.0 GitHub Sign In
+        #route is to request the users GitHub identity
+        self.router.add_route("GET","/authgithub", request_user_github_identity_route, True)
+
+        #route is to handle when user is redirected back to our web app
+        self.router.add_route("GET","/authcallback", code_for_access_code_github_route)
+
 
 
 

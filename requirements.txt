@@ -1,2 +1,5 @@
 pymongo
 bcrypt
+pyotp
+requests
+python-dotenv

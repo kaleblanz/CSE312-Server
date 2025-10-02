@@ -142,20 +142,6 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             self.router.route_request(request, self)
 
 
-        """
-        if "Content-Length" in request.headers:
-            print(f"request.headers:{request.headers}")
-            content_length = request.headers['Content-Length']
-            accumulated_body += len(request.body)
-            <
-            if accumulated_body == content_length:
-                accumulated_body = 0
-                self.router.route_request(request, self)
-        else:
-            self.router.route_request(request, self)
-        """
-
-
 
 def main():
     host = "0.0.0.0"

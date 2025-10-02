@@ -1,10 +1,15 @@
 import socketserver
+
+
 from util.request import Request
 from util.router import Router
 from util.hello_path import hello_path
 
 #import all functions from path_functions
 from path_functions import *
+
+#parse mutlimeida function
+from util.multipart import parse_multipart
 
 
 class MyTCPHandler(socketserver.BaseRequestHandler):
@@ -84,19 +89,72 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         self.router.add_route("GET","/authcallback", code_for_access_code_github_route)
 
 
+        #HW 3 HTML Routes
+        #render change avatar page
+        self.router.add_route("GET","/change-avatar", render_index_html)
+
+        #render page that displays all videos
+        self.router.add_route("GET", "/videotube", render_index_html)
+
+        #render upload video form
+        self.router.add_route("GET", "/videotube/upload", render_index_html)
+
+        #rendering to display a single video using the id, the '.' allows any id
+        self.router.add_route("GET", "/videotube/videos/.", render_index_html)
+
+        #handle file uploads from user for avatar
+        self.router.add_route("POST","/api/users/avatar", avatar_upload_route)
+
+
+
 
 
         super().__init__(request, client_address, server)
 
     def handle(self):
         received_data = self.request.recv(2048)
+
         print(self.client_address)
         print("--- received data ---")
         print(received_data)
         print("--- end of data ---\n\n")
         request = Request(received_data)
 
-        self.router.route_request(request, self)
+        """
+        create a buffer:
+        * read the content length of the request and buffer until you read the whole body
+        """
+
+        if "Content-Length" in request.headers:
+            accumulated_body = len(request.body)
+            total_size = int(request.headers["Content-Length"])
+            #print(f"total_size:{total_size}         type:{type(total_size)}")
+            #print(f"accumbody:{accumulated_body}         type:{type(accumulated_body)}")
+            while accumulated_body < total_size:
+                new_data = self.request.recv(2048)
+                #print(f"new_data:{new_data}")
+                #new_request = Request(new_data)
+                accumulated_body += len(new_data)
+                request.body += new_data
+            #print(f"request that was buffered body:{len(request.body)}")
+            self.router.route_request(request,self)
+        else:
+            self.router.route_request(request, self)
+
+
+        """
+        if "Content-Length" in request.headers:
+            print(f"request.headers:{request.headers}")
+            content_length = request.headers['Content-Length']
+            accumulated_body += len(request.body)
+            <
+            if accumulated_body == content_length:
+                accumulated_body = 0
+                self.router.route_request(request, self)
+        else:
+            self.router.route_request(request, self)
+        """
+
 
 
 def main():

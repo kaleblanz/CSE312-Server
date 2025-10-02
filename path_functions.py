@@ -22,6 +22,9 @@ import requests
 from dotenv import load_dotenv
 load_dotenv()
 
+#hw 3 multimedia uploads
+from util.multipart import parse_multipart
+
 
 
 def render_index_html(request, handler):
@@ -896,6 +899,10 @@ def code_for_access_code_github_route(request, handler):
 
 
 
+def avatar_upload_route(request, handler):
+    #print(f"request.headers:{request.headers}")
+    #print(f"request.body:{request.body}")
+    parse_multipart(request)
 
 
 

@@ -23,11 +23,13 @@ def parse_multipart(request):
     request_body_split = request.body.split(b"\r\n\r\n",1)[0].decode()
     name = request_body_split.split('\r\n')[1].split("; ")[1].split("=")[1]
     #print(f"name:{name}         type:{type(name)}")
-    part_obj.name = name
+    part_obj.name = name.strip('"')
     part_obj.content = request.body.split(b"\r\n\r\n",1)[1]
     #print(f"part_obj.content:{part_obj.content}")
     multipart_obj.parts.append(part_obj)
 
     #print(f"multipart boundary: {multipart_obj.boundary}")
     #print(f"multipart parts: {multipart_obj.list_of_parts[0].name}")
+
+    #print(multipart_obj.parts[0].name)
     return multipart_obj

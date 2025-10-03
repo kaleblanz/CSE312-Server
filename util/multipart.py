@@ -26,7 +26,7 @@ def parse_multipart(request):
     part_obj.name = name
     part_obj.content = request.body.split(b"\r\n\r\n",1)[1]
     #print(f"part_obj.content:{part_obj.content}")
-    multipart_obj.list_of_parts.append(part_obj)
+    multipart_obj.parts.append(part_obj)
 
     #print(f"multipart boundary: {multipart_obj.boundary}")
     #print(f"multipart parts: {multipart_obj.list_of_parts[0].name}")

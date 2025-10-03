@@ -132,6 +132,8 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             #print(f"accumbody:{accumulated_body}         type:{type(accumulated_body)}")
             while accumulated_body < total_size:
                 new_data = self.request.recv(2048)
+                if not new_data:
+                    break
                 #print(f"new_data:{new_data}")
                 #new_request = Request(new_data)
                 accumulated_body += len(new_data)

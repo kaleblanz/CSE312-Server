@@ -4,7 +4,7 @@ class Request:
         # TODO: parse the bytes of the request and populate the following instance variables
 
         #splits the bytes at the point b"\r\n\r\n", body is [1] and the rest is [0]
-        request_bytes_split = request.split(b"\r\n\r\n")
+        request_bytes_split = request.split(b"\r\n\r\n",1)
         #print(request_bytes_split)
 
         #turn the bytes into a literal string (its everything but the body)

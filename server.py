@@ -141,7 +141,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                 accumulated_body += len(new_data)
                 request.body += new_data
             #print(f"request that was buffered body:{len(request.body)}")
-            print(f"allbytes:{all_bytes}")
+            #print(f"allbytes:{all_bytes}")
             self.router.route_request(request,self)
         else:
             self.router.route_request(request, self)

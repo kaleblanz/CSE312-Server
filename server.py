@@ -124,14 +124,16 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         create a buffer:
         * read the content length of the request and buffer until you read the whole body
         """
-
+        all_bytes = received_data
         if "Content-Length" in request.headers:
             accumulated_body = len(request.body)
+
             total_size = int(request.headers["Content-Length"])
             #print(f"total_size:{total_size}         type:{type(total_size)}")
             #print(f"accumbody:{accumulated_body}         type:{type(accumulated_body)}")
             while accumulated_body < total_size:
                 new_data = self.request.recv(2048)
+                all_bytes+=new_data
                 if not new_data:
                     break
                 #print(f"new_data:{new_data}")
@@ -139,6 +141,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                 accumulated_body += len(new_data)
                 request.body += new_data
             #print(f"request that was buffered body:{len(request.body)}")
+            print(f"allbytes:{all_bytes}")
             self.router.route_request(request,self)
         else:
             self.router.route_request(request, self)

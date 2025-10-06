@@ -78,8 +78,6 @@ def render_images(request, handler):
         # the body of the response is reading the html file
         response.bytes(img_file.read())
         response.headers({"Content-Type": f"image/{mime_type}"})
-        #response.headers({"Content-Type": f"image/{mime_type}; charset=utf-8"})
-        #response.headers({"Content-Length": len(img_file.read().encode())})
         response.set_status(200, "OK")
         handler.request.sendall(response.to_data())
 
@@ -434,7 +432,8 @@ def post_registration_route(request, handler):
 
 
 
-    user_info = {"username":username, "password":hash_pass, "id": str(uuid.uuid4()), "auth_token":""}
+    user_info = {"username":username, "password":hash_pass, "id": str(uuid.uuid4()),
+                 "auth_token":"", "imageURL": None }
     print(f"user info:{user_info}")
 
     user_collection.insert_one(user_info)
@@ -669,7 +668,7 @@ def return_profile_route(request, handler):
         user_info = user_collection.find_one({"auth_token" : hash_auth})
 
         response.set_status(200, "OK")
-        response.json({"username" : user_info["username"], "id" : user_info["id"]})
+        response.json({"username" : user_info["username"], "id" : user_info["id"], "imageURL" : user_info['imageURL']})
         handler.request.sendall(response.to_data())
 
     else:
@@ -884,7 +883,8 @@ def code_for_access_code_github_route(request, handler):
     if username in all_data:
         user_collection.update_one({"username":username}, {"$set" : {"auth_token" : hash_auth}})
     else:
-        user_collection.insert_one({"username": username, "id" : id, "auth_token" : hash_auth, "access_token" : access_token})
+        user_collection.insert_one({"username": username, "id" : id, "auth_token" : hash_auth,
+                                    "access_token" : access_token, "imageURL": None })
 
     response = Response()
 
@@ -903,6 +903,18 @@ def avatar_upload_route(request, handler):
     #print(f"request.headers:{request.headers}")
     #print(f"request.body:{request.body}")
     multipart_obj = parse_multipart(request)
+    print(f"boundary:{multipart_obj.boundary}")
+    print(f"how many parts:{len(multipart_obj.parts)}")
+    print(f"part 0 header:{multipart_obj.parts[0].headers}")
+    print(f"part 0 name:{multipart_obj.parts[0].name}")
+    print(f"part 0 content:{multipart_obj.parts[0].content}")
+
+
+    with open("public/imgs/mario.png","wb") as file:
+        file.write(multipart_obj.parts[0].content)
+
+
+
 
     response = Response()
     response.set_status(200, "OK")

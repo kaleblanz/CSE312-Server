@@ -904,6 +904,10 @@ def avatar_upload_route(request, handler):
     #print(f"request.body:{request.body}")
     multipart_obj = parse_multipart(request)
 
+    response = Response()
+    response.set_status(200, "OK")
+    handler.request.sendall(response.to_data())
+
 
 
 

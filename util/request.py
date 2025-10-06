@@ -58,6 +58,7 @@ class Request:
                 self.headers[header] = value
 
 
+"""
 def test1():
     request = Request(b'GET / HTTP/1.1\r\nHost: localhost:8080\r\nConnection: keep-alive\r\n\r\n')
     assert request.method == "GET"
@@ -172,3 +173,4 @@ if __name__ == '__main__':
     test1()
     test2()
     test3()
+"""

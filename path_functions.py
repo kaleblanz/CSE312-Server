@@ -8,6 +8,7 @@ import uuid
 
 from util.database import chat_collection
 from util.database import user_collection
+from util.database import video_collection
 from util.auth import extract_credentials,validate_password
 import bcrypt
 import hashlib
@@ -25,6 +26,7 @@ load_dotenv()
 #hw 3 multimedia uploads
 from util.multipart import parse_multipart
 
+from datetime import datetime
 
 
 def render_index_html(request, handler):
@@ -44,6 +46,11 @@ def render_index_html(request, handler):
         request_path = "/index"
     #create the file path
     file_path = "public" + request_path + ".html"
+
+    if file_path == "public/videotube/upload.html":
+        file_path = "public/upload.html"
+    if "/videotube/videos/" in file_path:
+        file_path = "public/view-video.html"
     with open(file_path, "rb") as html_file:
         #the body of the response is reading the html file
         html_body = html_file.read()
@@ -905,16 +912,16 @@ def avatar_upload_route(request, handler):
     #print(f"request.headers:{request.headers}")
     #print(f"request.body:{request.body}")
     multipart_obj = parse_multipart(request)
-    print(f"boundary:{multipart_obj.boundary}")
-    print(f"how many parts:{len(multipart_obj.parts)}")
-    print(f"part 0 header:{multipart_obj.parts[0].headers}")
-    print(f"part 0 name:{multipart_obj.parts[0].name}")
-    print(f"part 0 content:{multipart_obj.parts[0].content}")
+    #print(f"boundary:{multipart_obj.boundary}")
+    #print(f"how many parts:{len(multipart_obj.parts)}")
+    #print(f"part 0 header:{multipart_obj.parts[0].headers}")
+    #print(f"part 0 name:{multipart_obj.parts[0].name}")
+    #print(f"part 0 content:{multipart_obj.parts[0].content}")
 
     file_name = str(uuid.uuid4())
     content_type = multipart_obj.parts[0].headers['Content-Type'].split('/')[1]
     file_name = "public/imgs/"+file_name+"."+content_type
-    print(f"filename:{file_name}")
+    #print(f"filename:{file_name}")
 
     with open(file_name,"wb") as file:
         file.write(multipart_obj.parts[0].content)
@@ -929,7 +936,62 @@ def avatar_upload_route(request, handler):
     handler.request.sendall(response.to_data())
 
 
+def upload_video_route(request, handler):
+    multipart = parse_multipart(request)
+    id = str(uuid.uuid4())
 
+    title = multipart.parts[0].content.decode()
+    print(f"title content:{multipart.parts[0].content.decode()}")
+
+    description = multipart.parts[1].content.decode()
+    print(f"title content:{multipart.parts[1].content.decode()}")
+
+
+    file_name = "public/videos/" + id + ".mp4"
+    with open(file_name,'wb') as file:
+        file.write(multipart.parts[2].content)
+
+    auth_token = request.cookies['auth_token']
+    hash_auth_token = hashlib.sha256(auth_token.encode()).hexdigest()
+    user_info = user_collection.find_one({"auth_token":hash_auth_token})
+
+
+    video_info = {"author_id": user_info['id'], "title": title, "description": description,
+                  "video_path": file_name,"created_at": str(datetime.now()), "id": id}
+    video_collection.insert_one(video_info)
+
+    response = Response()
+    response.json({"id":id})
+    response.set_status(200, "OK")
+    handler.request.sendall(response.to_data())
+
+def get_all_videos_route(request, handler):
+    all_videos = video_collection.find({})
+    list_of_videos = []
+    for video in all_videos:
+        video.pop("_id")
+        #print(f"video:{video}")
+        list_of_videos.append(video)
+    dic = {"videos" : list_of_videos}
+    #print(f"dictionary of videos:{dic}")
+
+
+    response = Response()
+    response.json(dic)
+    response.set_status(200, "OK")
+    handler.request.sendall(response.to_data())
+
+def get_one_video_route(request, handler):
+    print("INSIDE GETTING ONE VID")
+    print(f"request path isndie one video:{request.path}")
+    id = request.path.split('/')[3]
+    video = video_collection.find_one({"id" : id})
+    video.pop("_id")
+
+    response = Response()
+    response.json({"video" : video})
+    response.set_status(200, "OK")
+    handler.request.sendall(response.to_data())
 
 
 """

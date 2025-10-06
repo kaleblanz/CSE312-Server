@@ -106,7 +106,14 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         #rendering to display a single video using the id, the '.' allows any id
         self.router.add_route("GET", "/videotube/videos/.", render_index_html)
 
+        #upload videos
+        self.router.add_route("POST","/api/videos", upload_video_route)
 
+        #retrieve all videos
+        self.router.add_route("GET","/api/videos", get_all_videos_route, True)
+
+        #retreive a single video
+        self.router.add_route("GET", "/api/videos/.", get_one_video_route)
 
 
 

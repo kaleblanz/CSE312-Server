@@ -19,7 +19,7 @@ chat_collection = db["chat"]
 
 user_collection = db["users"]
 
-test_collection = db["test_collection"]
+video_collection = db['videos']
 
 
 """

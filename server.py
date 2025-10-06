@@ -116,7 +116,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
         print(self.client_address)
         print("--- received data ---")
-        print(received_data)
+        #print(received_data)
         print("--- end of data ---\n\n")
         request = Request(received_data)
 

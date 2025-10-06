@@ -92,6 +92,10 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         #HW 3 HTML Routes
         #render change avatar page
         self.router.add_route("GET","/change-avatar", render_index_html)
+        # handle file uploads from user for avatar
+        self.router.add_route("POST", "/api/users/avatar", avatar_upload_route)
+
+
 
         #render page that displays all videos
         self.router.add_route("GET", "/videotube", render_index_html)
@@ -102,8 +106,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         #rendering to display a single video using the id, the '.' allows any id
         self.router.add_route("GET", "/videotube/videos/.", render_index_html)
 
-        #handle file uploads from user for avatar
-        self.router.add_route("POST","/api/users/avatar", avatar_upload_route)
+
 
 
 

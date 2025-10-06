@@ -115,7 +115,8 @@ def create_message_route(request, handler):
         hash_auth_token = hashlib.sha256( (request_cookies['auth_token']).encode()).hexdigest()
         user = user_collection.find_one({"auth_token": hash_auth_token } )
         print(f"user:{user}")
-        message_dict = {"author": user["username"], "id": uuid_new_id, "content": content_of_request,"updated": False}
+        message_dict = {"author": user["username"], "id": uuid_new_id, "content": content_of_request,
+                        "updated": False, "imageURL" : user['imageURL']}
         print(f"message_dict:{message_dict}")
         chat_collection.insert_one(message_dict)
 
@@ -135,7 +136,8 @@ def create_message_route(request, handler):
         # store the hashed session in the db
         hash_session_cookie = hashlib.sha256(uuid_cookie_value.encode()).hexdigest()
 
-        message_dict = {"author": uuid_author_id, "id": uuid_cookie_value, "content": content_of_request, "updated": False, "session" : hash_session_cookie}
+        message_dict = {"author": uuid_author_id, "id": uuid_cookie_value, "content": content_of_request,
+                        "updated": False, "session" : hash_session_cookie}
         chat_collection.insert_one(message_dict)
     #docker/local error
     elif chat_collection.find_one({"id": request_cookies['session']}) is None:
@@ -909,11 +911,17 @@ def avatar_upload_route(request, handler):
     print(f"part 0 name:{multipart_obj.parts[0].name}")
     print(f"part 0 content:{multipart_obj.parts[0].content}")
 
+    file_name = str(uuid.uuid4())
+    content_type = multipart_obj.parts[0].headers['Content-Type'].split('/')[1]
+    file_name = "public/imgs/"+file_name+"."+content_type
+    print(f"filename:{file_name}")
 
-    with open("public/imgs/mario.png","wb") as file:
+    with open(file_name,"wb") as file:
         file.write(multipart_obj.parts[0].content)
 
-
+    auth_token = request.cookies['auth_token']
+    hash_auth_token = hashlib.sha256(auth_token.encode()).hexdigest()
+    user_collection.update_one({"auth_token":hash_auth_token},{"$set" : {"imageURL":file_name}})
 
 
     response = Response()

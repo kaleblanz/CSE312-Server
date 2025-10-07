@@ -14,7 +14,13 @@ import bcrypt
 import hashlib
 
 #for totp 2FA
+#for uploading videos
 import os
+dir_ = "public/videos"
+try:
+    os.makedirs(dir_)
+except FileExistsError:
+    pass
 import time
 import pyotp
 
@@ -936,6 +942,9 @@ def avatar_upload_route(request, handler):
     handler.request.sendall(response.to_data())
 
 
+
+
+
 def upload_video_route(request, handler):
     multipart = parse_multipart(request)
     id = str(uuid.uuid4())
@@ -1007,7 +1016,12 @@ def render_video(request, handler):
 
     response.headers({"Content-Type" : "video/mp4"})
     response.set_status(200, "OK")
-    handler.request.sendall(response.to_data())
+
+    try:
+        handler.request.sendall(response.to_data())
+    except BrokenPipeError:
+        pass
+        done = response.to_data()
 
 """
 def main():

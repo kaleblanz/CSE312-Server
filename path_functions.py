@@ -993,6 +993,21 @@ def get_one_video_route(request, handler):
     response.set_status(200, "OK")
     handler.request.sendall(response.to_data())
 
+def render_video(request, handler):
+    #have a response of the content of the file
+    print("RENDER VIDEO")
+    id = request.path.split('/')[3].split(".mp4")[0]
+    print(request.path)
+    print(id)
+    video = video_collection.find_one({"id": id})
+    print(video)
+
+    with open(video['video_path'],'rb') as file:
+        response = Response()
+        response.bytes(file.read())
+        response.headers({"Content-Type" : "video/mp4"})
+        response.set_status(200, "OK")
+        handler.request.sendall(response.to_data())
 
 """
 def main():

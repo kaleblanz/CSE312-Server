@@ -115,6 +115,10 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         #retreive a single video
         self.router.add_route("GET", "/api/videos/.", get_one_video_route)
 
+        #render videos
+        #self.router.add_route("GET", "/public/video/.", render_video)
+        self.router.add_route("GET", "/public/videos/.", render_video)
+
 
 
 

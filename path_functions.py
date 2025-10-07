@@ -1001,13 +1001,13 @@ def render_video(request, handler):
     print(id)
     video = video_collection.find_one({"id": id})
     print(video)
-
+    response = Response()
     with open(video['video_path'],'rb') as file:
-        response = Response()
         response.bytes(file.read())
-        response.headers({"Content-Type" : "video/mp4"})
-        response.set_status(200, "OK")
-        handler.request.sendall(response.to_data())
+
+    response.headers({"Content-Type" : "video/mp4"})
+    response.set_status(200, "OK")
+    handler.request.sendall(response.to_data())
 
 """
 def main():

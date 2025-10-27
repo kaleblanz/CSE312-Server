@@ -10,6 +10,8 @@ COPY ./util ./util
 COPY ./path_functions.py ./path_functions.py
 
 RUN pip3 install -r requirements.txt
+#this installs ffmpeg during the building process of this docker file
+RUN apt-get update && apt-get install -y ffmpeg
 
 EXPOSE 8000
 

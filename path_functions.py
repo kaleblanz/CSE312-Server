@@ -14,6 +14,7 @@ import bcrypt
 import hashlib
 
 #for totp 2FA
+
 #for uploading videos
 import os
 dir_ = "public/videos"
@@ -21,6 +22,14 @@ try:
     os.makedirs(dir_)
 except FileExistsError:
     pass
+#make dir for thumbnails for videos hw3 ao1
+dir_ = "public/imgs/thumbnails"
+try:
+    os.makedirs(dir_)
+except FileExistsError:
+    pass
+
+
 import time
 import pyotp
 
@@ -33,6 +42,11 @@ load_dotenv()
 from util.multipart import parse_multipart
 
 from datetime import datetime
+
+import ffmpeg
+
+import subprocess
+#for HW3 AO2
 
 
 def render_index_html(request, handler):
@@ -57,6 +71,8 @@ def render_index_html(request, handler):
         file_path = "public/upload.html"
     if "/videotube/videos/" in file_path:
         file_path = "public/view-video.html"
+    if "/videotube/set-thumbnail" in file_path:
+        file_path = "public/set-thumbnail.html"
     with open(file_path, "rb") as html_file:
         #the body of the response is reading the html file
         html_body = html_file.read()
@@ -477,95 +493,96 @@ def post_login_route(request, handler):
     print(f"url_encoded_str:{url_encoded_str}")
     username = url_encoded_str.split('&')[0].split('=')[1]
     user_info = user_collection.find_one({"username" : username})
-    print(user_info)
+    #print(user_info)
     # if the username has a secret field in the DB
     #if true then it's a 2FA user
-    if "secret" in user_info:
-        print("INSIDE SECRET")
-        if "totpCode=" in url_encoded_str:
-            print("INSIDE IF")
-            # case 2 then the 2FA user tries to log in with the username, password and totp
-            split_url_encoded_str = url_encoded_str.split('&')
-            #create a new str with just the username and password
-            new_url = split_url_encoded_str[0] + "&" + split_url_encoded_str[1]
-            #totp code from the string
-            user_entered_totp_code = split_url_encoded_str[2].split("=")[1]
+    if user_info is not None:
+        if "secret" in user_info:
+            print("INSIDE SECRET")
+            if "totpCode=" in url_encoded_str:
+                print("INSIDE IF")
+                # case 2 then the 2FA user tries to log in with the username, password and totp
+                split_url_encoded_str = url_encoded_str.split('&')
+                #create a new str with just the username and password
+                new_url = split_url_encoded_str[0] + "&" + split_url_encoded_str[1]
+                #totp code from the string
+                user_entered_totp_code = split_url_encoded_str[2].split("=")[1]
 
-            #change the request to just a username and password
-            request.body = new_url.encode()
-            #get the username and decoded password from the request
-            username,password = extract_credentials(request)
+                #change the request to just a username and password
+                request.body = new_url.encode()
+                #get the username and decoded password from the request
+                username,password = extract_credentials(request)
 
-            #check if the username and password match
-            result_bool = bcrypt.checkpw(password.encode(), user_info['password'])
+                #check if the username and password match
+                result_bool = bcrypt.checkpw(password.encode(), user_info['password'])
 
-            if result_bool == False:
-                response.set_status(401, "Unauthorized")
-                response.text("your password is incorreect")
-                handler.request.sendall(response.to_data())
-                return
+                if result_bool == False:
+                    response.set_status(401, "Unauthorized")
+                    response.text("your password is incorreect")
+                    handler.request.sendall(response.to_data())
+                    return
 
-            secret = user_info['secret']
-            #secret in users db
-            print(f"secret:{secret}")
-            current_otp = pyotp.TOTP(secret).now()
-            #the current otp value
-            print(f"Current OPT:{current_otp}")
+                secret = user_info['secret']
+                #secret in users db
+                print(f"secret:{secret}")
+                current_otp = pyotp.TOTP(secret).now()
+                #the current otp value
+                print(f"Current OPT:{current_otp}")
 
-            if user_entered_totp_code == current_otp:
-                #the 2 values are equal and user will be authenticated
+                if user_entered_totp_code == current_otp:
+                    #the 2 values are equal and user will be authenticated
 
-                # create our authentication token
-                auth_token = str(uuid.uuid4())
-                # add a cookie that is our auth token with the HttpOnly and max age directive
-                response.cookies({"auth_token": auth_token + "; HttpOnly; Max-Age=7200; Path=/"})
-
-
-                # hash the auth token and update the users DB
-                hashed_auth_token = hashlib.sha256(auth_token.encode()).hexdigest()
-
-                # add the hashed auth_token to the users account
-                result = user_collection.update_one({"username": username}, {"$set": {"auth_token": hashed_auth_token}})
+                    # create our authentication token
+                    auth_token = str(uuid.uuid4())
+                    # add a cookie that is our auth token with the HttpOnly and max age directive
+                    response.cookies({"auth_token": auth_token + "; HttpOnly; Max-Age=7200; Path=/"})
 
 
-                """
-                the user is now authenticated, we will now switch all of their messages
-                from their random name to their user name
-                and delete their session cookie and now they only have the auth cookie
-                """
-                if "session" in request.cookies:
-                    # print("HERE 1")
-                    request_session = request.cookies["session"]
-                    # get all of the old geusts texts
-                    hash_request_session = hashlib.sha256(request_session.encode()).hexdigest()
-                    old_msg_from_session = chat_collection.find_one({"session": hash_request_session})
-                    if old_msg_from_session is not None:
-                        guest_username = old_msg_from_session['author']
-                        all_user_old_msg = chat_collection.update_many({"author": guest_username},
-                                                                {"$set": {"author": username}})
+                    # hash the auth token and update the users DB
+                    hashed_auth_token = hashlib.sha256(auth_token.encode()).hexdigest()
+
+                    # add the hashed auth_token to the users account
+                    result = user_collection.update_one({"username": username}, {"$set": {"auth_token": hashed_auth_token}})
 
 
-                # delete the session cookie now that we are authenticated
-                response.cookies({"session": "L; Max-Age=0"})
+                    """
+                    the user is now authenticated, we will now switch all of their messages
+                    from their random name to their user name
+                    and delete their session cookie and now they only have the auth cookie
+                    """
+                    if "session" in request.cookies:
+                        # print("HERE 1")
+                        request_session = request.cookies["session"]
+                        # get all of the old geusts texts
+                        hash_request_session = hashlib.sha256(request_session.encode()).hexdigest()
+                        old_msg_from_session = chat_collection.find_one({"session": hash_request_session})
+                        if old_msg_from_session is not None:
+                            guest_username = old_msg_from_session['author']
+                            all_user_old_msg = chat_collection.update_many({"author": guest_username},
+                                                                    {"$set": {"author": username}})
 
-                response.set_status(200, "OK")
-                response.text("you're now logged in with 2FA")
-                handler.request.sendall(response.to_data())
-                return
+
+                    # delete the session cookie now that we are authenticated
+                    response.cookies({"session": "L; Max-Age=0"})
+
+                    response.set_status(200, "OK")
+                    response.text("you're now logged in with 2FA")
+                    handler.request.sendall(response.to_data())
+                    return
+                else:
+                    response.set_status(401, "Unauthorized")
+                    response.text("your OTP is incorrect")
+                    handler.request.sendall(response.to_data())
+                    return
+
+
             else:
+                print("INSIDE ELSE")
+                # case 1 when the 2FA user tries to log in at first with just username and password
                 response.set_status(401, "Unauthorized")
-                response.text("your OTP is incorrect")
+                response.text("Enter your 2FA Code")
                 handler.request.sendall(response.to_data())
                 return
-
-
-        else:
-            print("INSIDE ELSE")
-            # case 1 when the 2FA user tries to log in at first with just username and password
-            response.set_status(401, "Unauthorized")
-            response.text("Enter your 2FA Code")
-            handler.request.sendall(response.to_data())
-            return
 
 
 
@@ -946,6 +963,13 @@ def avatar_upload_route(request, handler):
 
 
 def upload_video_route(request, handler):
+    dir_ = "public/videos"
+    try:
+        os.makedirs(dir_)
+    except FileExistsError:
+        pass
+
+
     multipart = parse_multipart(request)
     id = str(uuid.uuid4())
 
@@ -955,7 +979,7 @@ def upload_video_route(request, handler):
     description = multipart.parts[1].content.decode()
     print(f"title content:{multipart.parts[1].content.decode()}")
 
-
+    print("THIS IS THE ID:",id)
     file_name = "public/videos/" + id + ".mp4"
     with open(file_name,'wb') as file:
         file.write(multipart.parts[2].content)
@@ -964,15 +988,85 @@ def upload_video_route(request, handler):
     hash_auth_token = hashlib.sha256(auth_token.encode()).hexdigest()
     user_info = user_collection.find_one({"auth_token":hash_auth_token})
 
+    #adding thumbnails for ao1
+    #print(ffmpeg.probe(file_name))
+    duration_of_video = float(ffmpeg.probe(file_name)['format']['duration'])
+    first_time = 0.0
+    second_time = duration_of_video * .25
+    third_time = duration_of_video * .5
+    fourth_time = duration_of_video * .75
+    fifth_time = duration_of_video - 0.1 #getting the last exact frame gives an error
+
+    file_without_extension = file_name.split(".")[0]
+    #public/videos/98123j9picture
+    file_without_extension = file_without_extension.split("videos/")[1]
+
+    input_0 = ffmpeg.input(file_name,f="mp4",ss=first_time)
+    input_25 = ffmpeg.input(file_name, f="mp4", ss=second_time)
+    input_50 = ffmpeg.input(file_name, f="mp4", ss=third_time)
+    input_75 = ffmpeg.input(file_name, f="mp4", ss=fourth_time)
+    input_100 = ffmpeg.input(file_name, f="mp4", ss=fifth_time)
+
+    output_0 = ffmpeg.output(input_0, "public/imgs/thumbnails/"+file_without_extension+"_0.png",vframes=1)
+    output_25 = ffmpeg.output(input_25,"public/imgs/thumbnails/"+file_without_extension + "_25.png", vframes=1)
+    output_50 = ffmpeg.output(input_50,"public/imgs/thumbnails/"+file_without_extension + "_50.png", vframes=1)
+    output_75 = ffmpeg.output(input_75, "public/imgs/thumbnails/"+file_without_extension + "_75.png", vframes=1)
+    output_100 = ffmpeg.output(input_100, "public/imgs/thumbnails/"+file_without_extension + "_100.png", vframes=1)
+
+    ffmpeg.run(output_0)
+    ffmpeg.run(output_25)
+    ffmpeg.run(output_50)
+    ffmpeg.run(output_75)
+    ffmpeg.run(output_100)
+
+    list_of_thumbnails = [
+        "public/imgs/thumbnails/" + file_without_extension + "_0.png",
+        "public/imgs/thumbnails/" + file_without_extension + "_25.png",
+        "public/imgs/thumbnails/" + file_without_extension + "_50.png",
+        "public/imgs/thumbnails/" + file_without_extension + "_75.png",
+        "public/imgs/thumbnails/" + file_without_extension + "_100.png"
+    ]
+
+    #adding ABR for AO2
+    #id is the name of the new file name
+    dir_for_low_abr = "public/videos/low"
+    try:
+        os.makedirs(dir_for_low_abr)
+    except FileExistsError:
+        pass
+
+    dir_for_high_abr = "public/videos/high"
+    try:
+        os.makedirs(dir_for_high_abr)
+    except FileExistsError:
+        pass
+
+    command_high = [
+        "ffmpeg", "-i", f'public/videos/{id}.mp4', '-s', '1080x720', '-hls_list_size', '0', '-f', 'hls', f'public/videos/high/high_{id}.m3u8'
+    ]
+    subprocess.run(command_high)
+    command_low = [
+        "ffmpeg", "-i", f'public/videos/{id}.mp4', '-s', '64x64', '-hls_list_size', '0', '-f', 'hls', f'public/videos/low/low_{id}.m3u8'
+    ]
+    subprocess.run(command_low)
+
+    with open(f"public/videos/{id}_main_abr.m3u8", 'w') as file:
+        file.write("#EXTM3U" + "\n" + "#EXT-X-VERSION:3" + "\n" + '#EXT-X-STREAM-INF:BANDWIDTH=3159686,AVERAGE-BANDWIDTH=2901694,RESOLUTION=1080x720,CODECS="avc1.64001f,mp4a.40.2"' + "\n" + f'high_{id}.m3u8' + '\n\n' + '#EXT-X-STREAM-INF:BANDWIDTH=1000064,AVERAGE-BANDWIDTH=1009099,RESOLUTION=64x64,CODECS="avc1.64001e,mp4a.40.2"' + '\n' + f'low_{id}.m3u8' + '\n')
 
     video_info = {"author_id": user_info['id'], "title": title, "description": description,
-                  "video_path": file_name,"created_at": str(datetime.now()), "id": id}
+                  "video_path": file_name,"created_at": str(datetime.now()), "id": id,
+                  "thumbnails" : list_of_thumbnails,
+                  "thumbnailURL" : "public/imgs/thumbnails/" + file_without_extension + "_0.png",
+                  "hls_path": f"public/videos/{id}_main_abr.m3u8"}
     video_collection.insert_one(video_info)
 
     response = Response()
     response.json({"id":id})
     response.set_status(200, "OK")
     handler.request.sendall(response.to_data())
+
+
+
 
 def get_all_videos_route(request, handler):
     all_videos = video_collection.find({})
@@ -1005,23 +1099,70 @@ def get_one_video_route(request, handler):
 def render_video(request, handler):
     #have a response of the content of the file
     print("RENDER VIDEO")
-    id = request.path.split('/')[3].split(".mp4")[0]
-    print(request.path)
-    print(id)
-    video = video_collection.find_one({"id": id})
-    print(video)
     response = Response()
-    with open(video['video_path'],'rb') as file:
-        response.bytes(file.read())
 
-    response.headers({"Content-Type" : "video/mp4"})
+    if "low_" in request.path:
+        response.headers({"Content-Type": "application/x-mpegURL"})
+        m3u8_file = request.path.split("public/videos/")[1]
+        with open(f"public/videos/low/{m3u8_file}", 'rb') as file:
+            response.bytes(file.read())
+        response.set_status(200, "OK")
+        handler.request.sendall(response.to_data())
+        return
+
+    if "high_" in request.path:
+        response.headers({"Content-Type": "application/x-mpegURL"})
+        m3u8_file = request.path.split("public/videos/")[1]
+        with open(f"public/videos/high/{m3u8_file}", 'rb') as file:
+            response.bytes(file.read())
+        response.set_status(200, "OK")
+        handler.request.sendall(response.to_data())
+        return
+
+    if ".mp4" in request.path:
+        id = request.path.split('/')[3].split(".mp4")[0]
+        response.headers({"Content-Type": "video/mp4"})
+        video = video_collection.find_one({"id": id})
+        with open(video['video_path'], 'rb') as file:
+            response.bytes(file.read())
+    else:
+        id = request.path.split('/')[3].split("_main_abr.m3u8")[0]
+        response.headers({"Content-Type": "application/x-mpegURL"})
+
+        video = video_collection.find_one({"id": id})
+        print(f"id:{id}")
+        print(f"video:{video}")
+        print(f"video[hls_path]:{video['hls_path']}")
+        with open(video['hls_path'], 'r') as file:
+            response.text(file.read())
+
     response.set_status(200, "OK")
 
     try:
         handler.request.sendall(response.to_data())
     except BrokenPipeError:
+        print("BROKEN PIPEEEEEEE")
         pass
-        done = response.to_data()
+
+
+
+
+def change_thumbnail_route(request, handler):
+    #print(f"requestsspath:{request.path}")
+    #print(f"requestssbody:{request.body}")
+    new_thumbnail = json.loads(request.body.decode())['thumbnailURL']
+    #print(f"new_thumbnail:{new_thumbnail}")
+
+    video_info = video_collection.find_one({"thumbnails" : new_thumbnail})
+    #print("video found in db that matches thmubnail: ",video_info)
+    result = video_collection.update_one({"video_path" : video_info['video_path']},
+                                {"$set" : {"thumbnailURL" : new_thumbnail}})
+    #print(f"result of updating:{result}")
+    response = Response()
+    response.json({"message": "new thumbnail was uploaded"})
+    response.set_status(200, "OK")
+    handler.request.sendall(response.to_data())
+
 
 """
 def main():

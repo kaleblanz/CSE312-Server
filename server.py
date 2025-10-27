@@ -119,6 +119,13 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         #self.router.add_route("GET", "/public/video/.", render_video)
         self.router.add_route("GET", "/public/videos/.", render_video)
 
+        #HW 3 AO1
+        #render html to change thumbnails
+        self.router.add_route("GET","/videotube/set-thumbnail", render_index_html)
+
+        #route to change thumbnail
+        self.router.add_route("PUT","/api/thumbnails/.", change_thumbnail_route)
+
 
 
 

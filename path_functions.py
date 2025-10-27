@@ -1102,7 +1102,7 @@ def render_video(request, handler):
     response = Response()
 
     if "low_" in request.path:
-        response.headers({"Content-Type": "application/x-mpegURL"})
+        response.headers({"Content-Type": "video/mp4"})
         m3u8_file = request.path.split("public/videos/")[1]
         with open(f"public/videos/low/{m3u8_file}", 'rb') as file:
             response.bytes(file.read())
@@ -1111,7 +1111,7 @@ def render_video(request, handler):
         return
 
     if "high_" in request.path:
-        response.headers({"Content-Type": "application/x-mpegURL"})
+        response.headers({"Content-Type": "video/mp4"})
         m3u8_file = request.path.split("public/videos/")[1]
         with open(f"public/videos/high/{m3u8_file}", 'rb') as file:
             response.bytes(file.read())
@@ -1127,7 +1127,7 @@ def render_video(request, handler):
             response.bytes(file.read())
     else:
         id = request.path.split('/')[3].split("_main_abr.m3u8")[0]
-        response.headers({"Content-Type": "application/x-mpegURL"})
+        response.headers({"Content-Type": "video/mp4"})
 
         video = video_collection.find_one({"id": id})
         print(f"id:{id}")

@@ -160,7 +160,7 @@ def generate_ws_frame(input_bytes):
     return frame
 
 
-"""
+
 
 def test_gen_frame_1_7bit():
     result = generate_ws_frame(0b11110101.to_bytes(1,'little') + 0b01000011.to_bytes(1,'little') +0b00110100.to_bytes(1,'little') + 0b11110110.to_bytes(1,'little') + 0b11111101.to_bytes(1,'little') + 0b00010010.to_bytes(1,'little') +0b00111000.to_bytes(1,'little') + 0b11110100.to_bytes(1,'little') + 0b11101011.to_bytes(1,'little') + 0b00110101.to_bytes(1,'little') + 0b00100000.to_bytes(1,'little') + 0b11100011.to_bytes(1,'little') + 0b11101011.to_bytes(1,'little') + 0b01000011.to_bytes(1,'little') + 0b01100011.to_bytes(1,'little') + 0b10110001.to_bytes(1,'little') + 0b11101101.to_bytes(1,'little') + 0b00001001.to_bytes(1,'little') + 0b00111000.to_bytes(1,'little') + 0b11100111.to_bytes(1,'little') + 0b11000011.to_bytes(1,'little') + 0b00000100.to_bytes(1,'little') +0b00101010.to_bytes(1,'little') + 0b11100000.to_bytes(1,'little') + 0b11101111.to_bytes(1,'little') + 0b00000110.to_bytes(1,'little') + 0b00111100.to_bytes(1,'little') + 0b10110001.to_bytes(1,'little') + 0b10100010.to_bytes(1,'little') + 0b01000011.to_bytes(1,'little') + 0b00110100.to_bytes(1,'little') + 0b11110110.to_bytes(1,'little') + 0b11111101.to_bytes(1,'little') + 0b00010010.to_bytes(1,'little') + 0b00111000.to_bytes(1,'little') + 0b11110100.to_bytes(1,'little') + 0b11101011.to_bytes(1,'little') + 0b01000011.to_bytes(1,'little') + 0b01100011.to_bytes(1,'little') + 0b10110001.to_bytes(1,'little') + 0b11100110.to_bytes(1,'little') + 0b00001000.to_bytes(1,'little') + 0b01111011.to_bytes(1,'little') + 0b11101110.to_bytes(1,'little'))
@@ -206,6 +206,7 @@ def print_pretty_frame(data):
             new_line_counter = 0
     print("\n---------- END OF FRAME ----------")
 
+"""
 def test_hash():
     key = "VE85jtsmKiz6n22B+lIRRg=="
     accept = compute_accept(key)

@@ -144,16 +144,23 @@ def generate_ws_frame(input_bytes):
         byte1 = 0b01111110
         #bytes 2 and 3 are payload_length_extended
         byte2_3 = size_of_input_bytes.to_bytes(2,'little')
+        frame = byte0.to_bytes(1,'little') + byte1.to_bytes(1,'little') + byte2_3 + input_bytes
 
 
     # >=65536
     else:
-        pass
+        # byte0:  fin bit=1,reserve bits=000,opcode=0001
+        byte0 = 0b10000001
+        # byte1: 0 mask bit + 127 for payload_length
+        byte1 = 0b01111111
+        #bytes 2-9 will be the extended payload length which is 8 bytes long
+        bytes_2_through_9 = size_of_input_bytes.to_bytes(8,'little')
+        frame = byte0.to_bytes(1,'little') + byte0.to_bytes(1,'little') + bytes_2_through_9 + input_bytes
 
     return frame
 
 
-
+"""
 
 def test_gen_frame_1_7bit():
     result = generate_ws_frame(0b11110101.to_bytes(1,'little') + 0b01000011.to_bytes(1,'little') +0b00110100.to_bytes(1,'little') + 0b11110110.to_bytes(1,'little') + 0b11111101.to_bytes(1,'little') + 0b00010010.to_bytes(1,'little') +0b00111000.to_bytes(1,'little') + 0b11110100.to_bytes(1,'little') + 0b11101011.to_bytes(1,'little') + 0b00110101.to_bytes(1,'little') + 0b00100000.to_bytes(1,'little') + 0b11100011.to_bytes(1,'little') + 0b11101011.to_bytes(1,'little') + 0b01000011.to_bytes(1,'little') + 0b01100011.to_bytes(1,'little') + 0b10110001.to_bytes(1,'little') + 0b11101101.to_bytes(1,'little') + 0b00001001.to_bytes(1,'little') + 0b00111000.to_bytes(1,'little') + 0b11100111.to_bytes(1,'little') + 0b11000011.to_bytes(1,'little') + 0b00000100.to_bytes(1,'little') +0b00101010.to_bytes(1,'little') + 0b11100000.to_bytes(1,'little') + 0b11101111.to_bytes(1,'little') + 0b00000110.to_bytes(1,'little') + 0b00111100.to_bytes(1,'little') + 0b10110001.to_bytes(1,'little') + 0b10100010.to_bytes(1,'little') + 0b01000011.to_bytes(1,'little') + 0b00110100.to_bytes(1,'little') + 0b11110110.to_bytes(1,'little') + 0b11111101.to_bytes(1,'little') + 0b00010010.to_bytes(1,'little') + 0b00111000.to_bytes(1,'little') + 0b11110100.to_bytes(1,'little') + 0b11101011.to_bytes(1,'little') + 0b01000011.to_bytes(1,'little') + 0b01100011.to_bytes(1,'little') + 0b10110001.to_bytes(1,'little') + 0b11100110.to_bytes(1,'little') + 0b00001000.to_bytes(1,'little') + 0b01111011.to_bytes(1,'little') + 0b11101110.to_bytes(1,'little'))
@@ -290,7 +297,7 @@ if __name__ == "__main__":
     #test_frame_parse_1_64bit()
     test_gen_frame_1_7bit()
 
-
+"""
 
 
 

@@ -12,6 +12,7 @@ from path_functions import *
 #parse mutlimeida function
 from util.multipart import parse_multipart
 
+user_list = []
 
 class MyTCPHandler(socketserver.BaseRequestHandler):
 
@@ -156,10 +157,21 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
         #true when user requests a WebSocket
         if request.path == "/websocket":
+            auth_token = request.cookies['auth_token']
+            hash_auth = hashlib.sha256(auth_token.encode()).hexdigest()
+            user = user_collection.find_one({"auth_token" : hash_auth})
+            user_list.append({"username": user['username'], "tcp_handler": self})
+            print(f"self in hande:{self.client_address}")
             #response to accept websocket
             response = handshake_ws(request)
-            #send 101 switching protocols to start http
+
+            # send 101 switching protocols to start http
             self.request.sendall(response.to_data())
+
+            #broadcast this message to all WS users because a new handshake has occurred
+            broadcast_active_user_list()
+
+
             print("received_data from ws path:",received_data)
             while True:
                 received_data = self.request.recv(2048)
@@ -177,6 +189,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                     while len(total_receive_bytes) < payload_length + 6:
                         total_receive_bytes += self.request.recv(2048)
                     print("total_receive_bytes:", total_receive_bytes)
+                    self.request.sendall(generate_ws_frame(b'meow'))
 
                 #buffering for payload size between >=126 and <65536
                 if payload_length == 126:
@@ -195,6 +208,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                     while len(total_receive_bytes) < extended_payload_length + 14:
                         total_receive_bytes += self.request.recv(2048)
                     print("total_receive_bytes:", total_receive_bytes)
+
 
                 print("buffer recv data:",received_data)
                 print_pretty_frame(received_data)
@@ -237,6 +251,13 @@ def main():
 
     print("Listening on port " + str(port))
     server.serve_forever()
+
+
+def broadcast_active_user_list():
+    for user in user_list:
+        tcp_handler = user['tcp_handler']
+        user = user['username']
+        tcp_handler.request.sendall(generate_ws_frame(b'userlist'))
 
 
 if __name__ == "__main__":

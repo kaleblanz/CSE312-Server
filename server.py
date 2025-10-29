@@ -1,3 +1,4 @@
+import json
 import socketserver
 
 
@@ -176,6 +177,27 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             while True:
                 received_data = self.request.recv(2048)
 
+                frame = parse_ws_frame(received_data)
+                #opcode is to close the connection
+                if frame.opcode == 8:
+                    #remove the name from active_user_list
+                    name = user['username']
+
+                    #send the closing frame to the client
+                    byte0 = 0b10001000 #1 fin bit and 1000 for close connection
+                    byte1 = 0b00000000
+                    combine_b0_b1 = byte0.to_bytes(1,'little') + byte1.to_bytes(1,'little')
+                    self.request.sendall(generate_ws_frame(combine_b0_b1))
+
+                    # delete the name from user_list
+                    user_list.remove({"username": name, "tcp_handler": self})
+                    # broadcast our new userlist after the removal
+                    broadcast_active_user_list()
+
+                    #break the while true
+                    return
+
+
                 #add a buffer
                 #read the payload_length and make sure you've read that many bytes
                 byte1 = received_data[1]
@@ -254,10 +276,26 @@ def main():
 
 
 def broadcast_active_user_list():
+    # user_list = [{"tcp_handler" : tcp, "username":"username"}, ...]
     for user in user_list:
         tcp_handler = user['tcp_handler']
         user = user['username']
-        tcp_handler.request.sendall(generate_ws_frame(b'userlist'))
+        all_usernames = []
+        for username in user_list:
+            all_usernames.append({"username": username['username']})
+        result = {"messageType": "active_users_list", "users": all_usernames}
+        json_result = json.dumps(result)
+        tcp_handler.request.sendall(generate_ws_frame(json_result.encode()))
+
+def remove_user_from_user_list(name):
+    new_user_list = []
+    for user in user_list:
+        username = user['username']
+        if username != name:
+            new_user_list.append(user)
+    return new_user_list
+
+
 
 
 if __name__ == "__main__":

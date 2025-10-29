@@ -22,10 +22,3 @@ user_collection = db["users"]
 
 video_collection = db['videos']
 
-
-
-
-
-
-
-

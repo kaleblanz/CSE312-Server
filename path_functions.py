@@ -2,6 +2,7 @@ from http.client import responses
 from pydoc_data.topics import topics
 
 from util.response import Response
+from util.websockets import *
 from util.request import Request
 import json
 import uuid
@@ -1161,6 +1162,22 @@ def change_thumbnail_route(request, handler):
     response = Response()
     response.json({"message": "new thumbnail was uploaded"})
     response.set_status(200, "OK")
+    handler.request.sendall(response.to_data())
+
+
+
+
+def upgrade_websocket_route(request, handler):
+    return
+    print("headers:", request.headers)
+    ws_key = request.headers['Sec-WebSocket-Key']
+    print("wskey:",ws_key)
+    accept_key = compute_accept(ws_key)
+
+    response = Response()
+    response.set_status(101,"Switching Protocols")
+    response.headers({"Connection" : "Upgrade", "Upgrade" : "websocket",
+                      "Sec-Websocket-Accept" : accept_key})
     handler.request.sendall(response.to_data())
 
 

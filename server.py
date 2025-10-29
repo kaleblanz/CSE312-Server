@@ -4,6 +4,7 @@ import socketserver
 from util.request import Request
 from util.router import Router
 from util.hello_path import hello_path
+from util.websockets import *
 
 #import all functions from path_functions
 from path_functions import *
@@ -128,6 +129,18 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
 
 
+        #HW 4
+        #echo page
+        self.router.add_route("GET", "/test-websocket", render_index_html)
+        #drawing board page
+        self.router.add_route("GET", "/drawing-board", render_index_html)
+        #video call page
+        self.router.add_route("GET", "/video-call", render_index_html)
+        #video call room page via an id
+        self.router.add_route("GET", "/video-call/.", render_index_html)
+
+        #route to upgrade to websocket
+        #self.router.add_route("GET", "/websocket", upgrade_websocket_route)
 
 
         super().__init__(request, client_address, server)
@@ -140,6 +153,20 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         #print(received_data)
         #print("--- end of data ---\n\n")
         request = Request(received_data)
+
+        #true when user requests a WebSocket
+        if request.path == "/websocket":
+            #response to accept websocket
+            response = handshake_ws(request)
+            #send 101 switching protocols to start http
+            self.request.sendall(response.to_data())
+            print("received_data from ws path:",received_data)
+            while True:
+                received_data = self.request.recv(2048)
+
+                print("buffer recv data:",received_data)
+                print_pretty_frame(received_data)
+
 
         """
         create a buffer:
@@ -182,3 +209,41 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+"""
+inside handle:
+have our router send this to your function handling webSocket connections
+    inside this we'll do the handshake
+send the handshake over the socket then enter the infinite loop
+
+while true:
+    rec_data = recv(2048)
+    print(rec_data)
+"""
+
+#going to have to track all of our websocket connections
+    #keep track of every open connection
+#LO -> need buffer, but don't need to worry about reading too much
+"""
+# WS handshake is complete
+# can't let the method to end
+
+while true:
+    listen for msg over tcp connection, call recv and when we buffer multimedia
+        except now what we expect to recv are frames not http
+    if we see an opcode of 8 (b1000) -> 
+        BREAK, method end, tcp connection close, clean up DS tracking open web socket connections
+        
+"""
+
+"""
+buffering:
+    same as hw 3
+    when you get a frame, check payload length, make sure you've read that many bytes
+    (make sure you don't count the bytes of the headers)
+    if you haven't read that many bytes, you're in a buffering state
+        keep reading from the socket until you've read that many bytes
+        
+    
+"""

@@ -164,6 +164,38 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             while True:
                 received_data = self.request.recv(2048)
 
+                #add a buffer
+                #read the payload_length and make sure you've read that many bytes
+                byte1 = received_data[1]
+                payload_length_mask = 0b01111111
+                payload_length = byte1 & payload_length_mask
+                print(f"inside buffering, payload_length:{payload_length}")
+
+                #buffering for payload<126 (probably don't need this)
+                if payload_length < 126:
+                    total_receive_bytes = received_data
+                    while len(total_receive_bytes) < payload_length + 6:
+                        total_receive_bytes += self.request.recv(2048)
+                    print("total_receive_bytes:", total_receive_bytes)
+
+                #buffering for payload size between >=126 and <65536
+                if payload_length == 126:
+                    extended_payload_length = (received_data[2]<<8) + received_data[3]
+                    print(f"inside buffering, extended_payload_length:{extended_payload_length}")
+                    total_receive_bytes = received_data
+                    while len(total_receive_bytes) < extended_payload_length + 8:
+                        total_receive_bytes += self.request.recv(2048)
+                    print("total_receive_bytes:",total_receive_bytes)
+
+                #buffering for payload size >=65536
+                if payload_length == 127:
+                    extended_payload_length = (received_data[2]<<56) + (received_data[3]<<48) + (received_data[4]<<40) + (received_data[5]<<32) + (received_data[6]<<24) + (received_data[7]<<16) + (received_data[8]<<8) + received_data[9]
+                    print(f"inside buffering, extended_payload_length:{extended_payload_length}")
+                    total_receive_bytes = received_data
+                    while len(total_receive_bytes) < extended_payload_length + 14:
+                        total_receive_bytes += self.request.recv(2048)
+                    print("total_receive_bytes:", total_receive_bytes)
+
                 print("buffer recv data:",received_data)
                 print_pretty_frame(received_data)
 

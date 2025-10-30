@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import json
 
 from charset_normalizer import from_bytes
 
@@ -143,7 +144,11 @@ def generate_ws_frame(input_bytes):
         #byte1: 0 mask bit + 126 for payload_length
         byte1 = 0b01111110
         #bytes 2 and 3 are payload_length_extended
+        print(f"inside the test, len of input bytes:{size_of_input_bytes}")
         byte2_3 = size_of_input_bytes.to_bytes(2,'little')
+        #print("2 byte", size_of_input_bytes.to_bytes(2,'little'))
+        #print("1 bytes", size_of_input_bytes.to_bytes(1,'little'))
+
         frame = byte0.to_bytes(1,'little') + byte1.to_bytes(1,'little') + byte2_3 + input_bytes
 
 
@@ -155,9 +160,27 @@ def generate_ws_frame(input_bytes):
         byte1 = 0b01111111
         #bytes 2-9 will be the extended payload length which is 8 bytes long
         bytes_2_through_9 = size_of_input_bytes.to_bytes(8,'little')
-        frame = byte0.to_bytes(1,'little') + byte0.to_bytes(1,'little') + bytes_2_through_9 + input_bytes
+        frame = byte0.to_bytes(1,'little') + byte1.to_bytes(1,'little') + bytes_2_through_9 + input_bytes
 
     return frame
+
+
+def test_gen_frame_1_16bit():
+    dic = {"message": "12233223132jkdslajkldsakjsldasdkljakjsdkjlsdkljsadlkjsadklsjda12233223132jkdslajkldsakjsldasdkljakjsdkjlsdkljsadlkjsadklsjda", "drawing":"jsd;kafj;sfkdjsfkladkjlfadsdkflsjafkdjlsdkfjlskjldfdjkslf312312231321231132321321jsd;kafj;sfkdjsfkladkjlfadsdkflsjafkdjlsdkfjlskjldfdjkslf312312231321231132321321"}
+    json_dict = json.dumps(dic)
+    print(len(json_dict))
+    byte_string = json_dict.encode()
+    frame = generate_ws_frame(byte_string)
+    print("len of byte_string:",len(byte_string))
+    print("frame:",frame)
+    headers = b'\x81~<\x01'
+    print_pretty_frame(headers)
+
+    len_ = 316
+    print(bin(316))
+    print(len_.to_bytes(2,"little"))
+    print_pretty_frame(b'<\x01')
+
 
 
 
@@ -206,7 +229,7 @@ def print_pretty_frame(data):
             new_line_counter = 0
     print("\n---------- END OF FRAME ----------")
 
-"""
+#"""
 def test_hash():
     key = "VE85jtsmKiz6n22B+lIRRg=="
     accept = compute_accept(key)
@@ -296,9 +319,10 @@ if __name__ == "__main__":
     #test_frame_parse_1_16bit()
     #test_frame_parse_2_16bit_greater_than2048_bytes()
     #test_frame_parse_1_64bit()
-    test_gen_frame_1_7bit()
+    #test_gen_frame_1_7bit()
+    test_gen_frame_1_16bit()
 
-"""
+
 
 
 

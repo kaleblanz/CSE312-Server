@@ -22,6 +22,9 @@ user_collection = db["users"]
 
 video_collection = db['videos']
 
+drawingBoard_collection = db['drawing_board']
+
+
 """
 class Deez():
     def __init__(self):

@@ -145,7 +145,7 @@ def generate_ws_frame(input_bytes):
         byte1 = 0b01111110
         #bytes 2 and 3 are payload_length_extended
         print(f"inside the test, len of input bytes:{size_of_input_bytes}")
-        byte2_3 = size_of_input_bytes.to_bytes(2,'little')
+        byte2_3 = size_of_input_bytes.to_bytes(2,'big')#CHANGED TO BIG
         #print("2 byte", size_of_input_bytes.to_bytes(2,'little'))
         #print("1 bytes", size_of_input_bytes.to_bytes(1,'little'))
 
@@ -159,7 +159,7 @@ def generate_ws_frame(input_bytes):
         # byte1: 0 mask bit + 127 for payload_length
         byte1 = 0b01111111
         #bytes 2-9 will be the extended payload length which is 8 bytes long
-        bytes_2_through_9 = size_of_input_bytes.to_bytes(8,'little')
+        bytes_2_through_9 = size_of_input_bytes.to_bytes(8,'big') #CHANGED TO BIG
         frame = byte0.to_bytes(1,'little') + byte1.to_bytes(1,'little') + bytes_2_through_9 + input_bytes
 
     return frame
@@ -173,13 +173,13 @@ def test_gen_frame_1_16bit():
     frame = generate_ws_frame(byte_string)
     print("len of byte_string:",len(byte_string))
     print("frame:",frame)
-    headers = b'\x81~<\x01'
+    headers = b'\x81~\x01<'
     print_pretty_frame(headers)
 
     len_ = 316
     print(bin(316))
-    print(len_.to_bytes(2,"little"))
-    print_pretty_frame(b'<\x01')
+    print(len_.to_bytes(2,"big"))
+    print_pretty_frame(b'\x01<')
 
 
 

@@ -189,9 +189,12 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             while True:
                 received_data = self.request.recv(2048)
 
-                frame = parse_ws_frame(received_data)
+                opcode_mask = 0b00001111
+                opcode = received_data[0] & opcode_mask
+
+                #frame = parse_ws_frame(received_data)
                 #opcode is to close the connection
-                if frame.opcode == 8:
+                if opcode == 8:
                     #remove the name from active_user_list
                     name = user['username']
 
@@ -241,8 +244,9 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                         broadcast_drawing_content(payload)
 
                     if payload['messageType'] == 'echo_client':
-                        pass
-                    #self.request.sendall(generate_ws_frame(b'meow'))
+                        response_dict = {"messageType": "echo_server", "text": payload['text']}
+                        json_decode = json.dumps(response_dict).encode()
+                        self.request.sendall(generate_ws_frame(json_decode))
 
                 #buffering for payload size between >=126 and <65536
                 if payload_length == 126:
@@ -253,6 +257,27 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                         total_receive_bytes += self.request.recv(2048)
                     print("total_receive_bytes:",total_receive_bytes)
 
+                    frame = parse_ws_frame(total_receive_bytes)
+                    payload = json.loads(frame.payload.decode())
+                    print(f"payload:{payload}")
+                    # self.request.sendall(generate_ws_frame(json_result.encode()))
+                    # means user is drawing on the drawing board
+                    if payload['messageType'] == 'drawing':
+                        # update our db storing all drawings
+                        draw_dict = {"startX": payload['startX'], "startY": payload['startY'],
+                                     "endX": payload['endX'], "endY": payload['endY'], "color": payload['color']}
+                        drawingBoard_collection.insert_one(draw_dict)
+
+                        # broadcast this drawing to every active user with WS connection
+                        broadcast_drawing_content(payload)
+
+                    if payload['messageType'] == 'echo_client':
+                        response_dict = {"messageType": "echo_server", "text": payload['text']}
+                        json_decode = json.dumps(response_dict).encode()
+                        self.request.sendall(generate_ws_frame(json_decode))
+
+
+
                 #buffering for payload size >=65536
                 if payload_length == 127:
                     extended_payload_length = (received_data[2]<<56) + (received_data[3]<<48) + (received_data[4]<<40) + (received_data[5]<<32) + (received_data[6]<<24) + (received_data[7]<<16) + (received_data[8]<<8) + received_data[9]
@@ -261,6 +286,25 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                     while len(total_receive_bytes) < extended_payload_length + 14:
                         total_receive_bytes += self.request.recv(2048)
                     print("total_receive_bytes:", total_receive_bytes)
+
+                    frame = parse_ws_frame(total_receive_bytes)
+                    payload = json.loads(frame.payload.decode())
+                    print(f"payload:{payload}")
+                    # self.request.sendall(generate_ws_frame(json_result.encode()))
+                    # means user is drawing on the drawing board
+                    if payload['messageType'] == 'drawing':
+                        # update our db storing all drawings
+                        draw_dict = {"startX": payload['startX'], "startY": payload['startY'],
+                                     "endX": payload['endX'], "endY": payload['endY'], "color": payload['color']}
+                        drawingBoard_collection.insert_one(draw_dict)
+
+                        # broadcast this drawing to every active user with WS connection
+                        broadcast_drawing_content(payload)
+
+                    if payload['messageType'] == 'echo_client':
+                        response_dict = {"messageType": "echo_server", "text": payload['text']}
+                        json_decode = json.dumps(response_dict).encode()
+                        self.request.sendall(generate_ws_frame(json_decode))
 
 
                 print("buffer recv data:",received_data)

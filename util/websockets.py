@@ -312,6 +312,7 @@ def test_frame_parse_1_64bit():
     assert expected_payload_length == frame.payload_length
     assert expected_payload == frame.payload, f"expected_payload:\n{expected_payload}\nactual:{frame.payload}"
 
+"""
 if __name__ == "__main__":
     #test_hash()
     #test_frame_parse_1_7bit()
@@ -321,7 +322,7 @@ if __name__ == "__main__":
     #test_frame_parse_1_64bit()
     #test_gen_frame_1_7bit()
     test_gen_frame_1_16bit()
-
+"""
 
 
 

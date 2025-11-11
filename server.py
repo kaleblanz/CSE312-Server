@@ -187,13 +187,16 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
 
             print("received_data from ws path:",received_data)
+            received_data = b''
             while True:
-                received_data = self.request.recv(2048)
+
+                #only ask for new bytes if received data has 0 bytes left to read
+                if len(received_data) == 0:
+                    received_data = self.request.recv(2048)
 
                 opcode_mask = 0b00001111
                 opcode = received_data[0] & opcode_mask
 
-                #frame = parse_ws_frame(received_data)
                 #opcode is to close the connection
                 if opcode == 8:
                     #remove the name from active_user_list
@@ -214,7 +217,6 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                     return
 
 
-                #add a buffer
                 #read the payload_length and make sure you've read that many bytes
                 byte1 = received_data[1]
                 payload_length_mask = 0b01111111
@@ -222,18 +224,33 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                 print(f"inside buffering, payload_length:{payload_length}")
 
 
-
-
-                #buffering for payload<126 (probably don't need this)
+                #buffering for payload<126
                 if payload_length < 126:
-                    total_receive_bytes = received_data
-                    while len(total_receive_bytes) < payload_length + 6:
-                        total_receive_bytes += self.request.recv(2048)
-                    print("total_receive_bytes:", total_receive_bytes)
-                    frame = parse_ws_frame(total_receive_bytes)
-                    payload = json.loads(frame.payload.decode())
-                    print(f"payload:{payload}")
-                    #self.request.sendall(generate_ws_frame(json_result.encode()))
+
+                    # BACK TO BACK FRAMES
+                    # first check if we read too many bytes
+                    if len(received_data) > payload_length + 6:
+                        correct_bytes_needed = received_data[0:payload_length + 6]
+                        extra_bytes = received_data[payload_length + 6:]
+                        frame = parse_ws_frame(correct_bytes_needed)
+                        payload = json.loads(frame.payload.decode())
+                        print(payload)
+
+                        #store the bytes not used in received_data
+                        received_data = extra_bytes
+
+
+                    else:
+                        total_receive_bytes = received_data
+                        while len(total_receive_bytes) < payload_length + 6:
+                            total_receive_bytes += self.request.recv(2048)
+                        print("total_receive_bytes:", total_receive_bytes)
+                        frame = parse_ws_frame(total_receive_bytes)
+                        payload = json.loads(frame.payload.decode())
+                        print(f"payload:{payload}")
+                        # received_data is now an empty string because we read everything in the socket
+                        received_data = b''
+
                     #means user is drawing on the drawing board
                     if payload['messageType'] == 'drawing':
                         #update our db storing all drawings
@@ -248,6 +265,12 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                         response_dict = {"messageType": "echo_server", "text": payload['text']}
                         json_decode = json.dumps(response_dict).encode()
                         self.request.sendall(generate_ws_frame(json_decode))
+
+
+
+
+
+
 
                 #buffering for payload size between >=126 and <65536
                 if payload_length == 126:
@@ -276,7 +299,6 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                         response_dict = {"messageType": "echo_server", "text": payload['text']}
                         json_decode = json.dumps(response_dict).encode()
                         self.request.sendall(generate_ws_frame(json_decode))
-
 
 
                 #buffering for payload size >=65536
@@ -389,38 +411,13 @@ if __name__ == "__main__":
 
 
 """
-inside handle:
-have our router send this to your function handling webSocket connections
-    inside this we'll do the handshake
-send the handshake over the socket then enter the infinite loop
-
-while true:
-    rec_data = recv(2048)
-    print(rec_data)
-"""
-
-#going to have to track all of our websocket connections
-    #keep track of every open connection
-#LO -> need buffer, but don't need to worry about reading too much
-"""
-# WS handshake is complete
-# can't let the method to end
-
-while true:
-    listen for msg over tcp connection, call recv and when we buffer multimedia
-        except now what we expect to recv are frames not http
-    if we see an opcode of 8 (b1000) -> 
-        BREAK, method end, tcp connection close, clean up DS tracking open web socket connections
-        
-"""
-
-"""
-buffering:
-    same as hw 3
-    when you get a frame, check payload length, make sure you've read that many bytes
-    (make sure you don't count the bytes of the headers)
-    if you haven't read that many bytes, you're in a buffering state
-        keep reading from the socket until you've read that many bytes
-        
+back to back frames:
+* when you store the extra bytes, 
+    initialize received_data to an empty byte string
+    put the extra bytes in the received_data variable that gets bytes from the TCP
+    at top of loop, check if received_data is not empty then start parsing the frame, check the headers, buffer if i have to
+    if byte string is empty then read from the stream then do the same thing
     
+* doesn't matter if we just got these bytes from the socket just then or it was sitting in received_data for a whole frame process
+    DON'T MATTER, reuse the same code
 """

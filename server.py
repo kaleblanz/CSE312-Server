@@ -163,7 +163,8 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             hash_auth = hashlib.sha256(auth_token.encode()).hexdigest()
             user = user_collection.find_one({"auth_token" : hash_auth})
             user_list.append({"username": user['username'], "tcp_handler": self})
-            print(f"self in hande:{self.client_address}")
+
+
             #response to accept websocket
             response = handshake_ws(request)
 

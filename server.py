@@ -188,6 +188,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
             print("received_data from ws path:",received_data)
             received_data = b''
+            continuation_payload = b''
             while True:
 
                 #only ask for new bytes if received data has 0 bytes left to read
@@ -196,6 +197,9 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
                 opcode_mask = 0b00001111
                 opcode = received_data[0] & opcode_mask
+                fin_bit_mask = 0b10000000
+                fin_bit_unshifted = received_data[0] & fin_bit_mask
+                fin_bit = fin_bit_unshifted >> 7
 
                 #opcode is to close the connection
                 if opcode == 8:
@@ -223,6 +227,16 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                 payload_length = byte1 & payload_length_mask
                 print(f"inside buffering, payload_length:{payload_length}")
 
+                """
+                if fin_bit 0:
+                treat it normally and store the frame.payload in some data structure
+                
+                when fin_bit is finally 1
+                get the frame.payload and concatenate all frame.payloads in the DS
+                
+                refresh our accumulator to empty '' at the end
+                """
+
 
                 #buffering for payload<126
                 if payload_length < 126:
@@ -233,8 +247,21 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                         correct_bytes_needed = received_data[0:payload_length + 6]
                         extra_bytes = received_data[payload_length + 6:]
                         frame = parse_ws_frame(correct_bytes_needed)
-                        payload = json.loads(frame.payload.decode())
-                        print(payload)
+
+                        if (continuation_payload == b'') and (fin_bit == 1):
+                            payload = json.loads(frame.payload.decode())
+                        # JSON ERROR BECAUSE SINCE FIN BIT IS 0, WE AREN'T DONE BUILDING THE TOTAL PAYLOAD, THERE IS NOT CLOSING }
+                        elif fin_bit == 1:
+                            continuation_payload = continuation_payload + frame.payload
+                            try:
+                                payload = json.loads(continuation_payload.decode())
+                            except UnicodeDecodeError:
+                                pass
+                        # fin_bit = 0
+                        else:
+                            continuation_payload += frame.payload
+
+                        # payload = json.loads(frame.payload.decode()) #this is
 
                         #store the bytes not used in received_data
                         received_data = extra_bytes
@@ -246,25 +273,39 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                             total_receive_bytes += self.request.recv(2048)
                         print("total_receive_bytes:", total_receive_bytes)
                         frame = parse_ws_frame(total_receive_bytes)
-                        payload = json.loads(frame.payload.decode())
-                        print(f"payload:{payload}")
+
+                        if (continuation_payload == b'') and (fin_bit == 1):
+                            payload = json.loads(frame.payload.decode())
+                        # JSON ERROR BECAUSE SINCE FIN BIT IS 0, WE AREN'T DONE BUILDING THE TOTAL PAYLOAD, THERE IS NOT CLOSING }
+                        elif fin_bit == 1:
+                            continuation_payload = continuation_payload + frame.payload
+                            payload = json.loads(continuation_payload.decode())
+                        # fin_bit = 0
+                        else:
+                            continuation_payload += frame.payload
+
+                        # payload = json.loads(frame.payload.decode()) #this is
+
+
                         # received_data is now an empty string because we read everything in the socket
                         received_data = total_receive_bytes[frame.payload_length+6:]
 
-                    #means user is drawing on the drawing board
-                    if payload['messageType'] == 'drawing':
-                        #update our db storing all drawings
-                        draw_dict = {"startX" : payload['startX'], "startY": payload['startY'] ,
-                         "endX": payload['endX'] , "endY":  payload['endY'] ,  "color": payload['color'] }
-                        drawingBoard_collection.insert_one(draw_dict)
+                    if fin_bit == 1:
+                        continuation_payload = b''
+                        #means user is drawing on the drawing board
+                        if payload['messageType'] == 'drawing':
+                            #update our db storing all drawings
+                            draw_dict = {"startX" : payload['startX'], "startY": payload['startY'] ,
+                             "endX": payload['endX'] , "endY":  payload['endY'] ,  "color": payload['color'] }
+                            drawingBoard_collection.insert_one(draw_dict)
 
-                        #broadcast this drawing to every active user with WS connection
-                        broadcast_drawing_content(payload)
+                            #broadcast this drawing to every active user with WS connection
+                            broadcast_drawing_content(payload)
 
-                    if payload['messageType'] == 'echo_client':
-                        response_dict = {"messageType": "echo_server", "text": payload['text']}
-                        json_decode = json.dumps(response_dict).encode()
-                        self.request.sendall(generate_ws_frame(json_decode))
+                        if payload['messageType'] == 'echo_client':
+                            response_dict = {"messageType": "echo_server", "text": payload['text']}
+                            json_decode = json.dumps(response_dict).encode()
+                            self.request.sendall(generate_ws_frame(json_decode))
 
 
 
@@ -274,6 +315,9 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
                 #buffering for payload size between >=126 and <65536
                 if payload_length == 126:
+                    # small edge case where the leftover bytes are less than 4
+                    if len(received_data) < 4:
+                        received_data += self.request.recv(2048)
                     extended_payload_length = (received_data[2] << 8) + received_data[3]
 
                     # BACK TO BACK FRAMES
@@ -282,8 +326,18 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                         correct_bytes_needed = received_data[0:extended_payload_length + 8]
                         extra_bytes = received_data[extended_payload_length + 8:]
                         frame = parse_ws_frame(correct_bytes_needed)
-                        payload = json.loads(frame.payload.decode())
-                        print(payload)
+
+                        if (continuation_payload == b'') and (fin_bit == 1):
+                            payload = json.loads(frame.payload.decode())
+                        # JSON ERROR BECAUSE SINCE FIN BIT IS 0, WE AREN'T DONE BUILDING THE TOTAL PAYLOAD, THERE IS NOT CLOSING }
+                        elif fin_bit == 1:
+                            continuation_payload = continuation_payload + frame.payload
+                            payload = json.loads(continuation_payload.decode())
+                        # fin_bit = 0
+                        else:
+                            continuation_payload += frame.payload
+
+                        # payload = json.loads(frame.payload.decode()) #this is
 
                         # store the bytes not used in received_data
                         received_data = extra_bytes
@@ -296,53 +350,115 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                         #print("total_receive_bytes:",total_receive_bytes)
 
                         frame = parse_ws_frame(total_receive_bytes)
-                        payload = json.loads(frame.payload.decode())
+                        #JSON ERROR BECAUSE SINCE FIN BIT IS 0, WE AREN'T DONE BUILDING THE TOTAL PAYLOAD, THERE IS NOT CLOSING }
+                        if (continuation_payload == b'') and (fin_bit == 1):
+                            payload = json.loads(frame.payload.decode())
+                        # JSON ERROR BECAUSE SINCE FIN BIT IS 0, WE AREN'T DONE BUILDING THE TOTAL PAYLOAD, THERE IS NOT CLOSING }
+                        elif fin_bit == 1:
+                            continuation_payload = continuation_payload + frame.payload
+                            payload = json.loads(continuation_payload.decode())
+                        # fin_bit = 0
+                        else:
+                            continuation_payload += frame.payload
+
+                        # payload = json.loads(frame.payload.decode()) #this is
+
+
                         #received_data equals the leftover bytes from total_rec_bytes that were not used when called parse_frame
                         received_data = total_receive_bytes[frame.payload_length+8:]
 
+                    if fin_bit == 1:
+                        continuation_payload = b''
+
                     # means user is drawing on the drawing board
-                    if payload['messageType'] == 'drawing':
-                        # update our db storing all drawings
-                        draw_dict = {"startX": payload['startX'], "startY": payload['startY'],
-                                     "endX": payload['endX'], "endY": payload['endY'], "color": payload['color']}
-                        drawingBoard_collection.insert_one(draw_dict)
+                        if payload['messageType'] == 'drawing':
+                            # update our db storing all drawings
+                            draw_dict = {"startX": payload['startX'], "startY": payload['startY'],
+                                         "endX": payload['endX'], "endY": payload['endY'], "color": payload['color']}
+                            drawingBoard_collection.insert_one(draw_dict)
 
-                        # broadcast this drawing to every active user with WS connection
-                        broadcast_drawing_content(payload)
+                            # broadcast this drawing to every active user with WS connection
+                            broadcast_drawing_content(payload)
 
-                    if payload['messageType'] == 'echo_client':
-                        response_dict = {"messageType": "echo_server", "text": payload['text']}
-                        json_decode = json.dumps(response_dict).encode()
-                        self.request.sendall(generate_ws_frame(json_decode))
+                        if payload['messageType'] == 'echo_client':
+                            response_dict = {"messageType": "echo_server", "text": payload['text']}
+                            json_decode = json.dumps(response_dict).encode()
+                            self.request.sendall(generate_ws_frame(json_decode))
 
 
                 #buffering for payload size >=65536
                 if payload_length == 127:
-                    extended_payload_length = (received_data[2]<<56) + (received_data[3]<<48) + (received_data[4]<<40) + (received_data[5]<<32) + (received_data[6]<<24) + (received_data[7]<<16) + (received_data[8]<<8) + received_data[9]
-                    print(f"inside buffering, extended_payload_length:{extended_payload_length}")
-                    total_receive_bytes = received_data
-                    while len(total_receive_bytes) < extended_payload_length + 14:
-                        total_receive_bytes += self.request.recv(2048)
-                    print("total_receive_bytes:", total_receive_bytes)
+                    #small edge case where the leftover bytes are less than 9
+                    if len(received_data) < 10:
+                        received_data += self.request.recv(2048)
 
-                    frame = parse_ws_frame(total_receive_bytes)
-                    payload = json.loads(frame.payload.decode())
-                    print(f"payload:{payload}")
-                    # self.request.sendall(generate_ws_frame(json_result.encode()))
-                    # means user is drawing on the drawing board
-                    if payload['messageType'] == 'drawing':
-                        # update our db storing all drawings
-                        draw_dict = {"startX": payload['startX'], "startY": payload['startY'],
-                                     "endX": payload['endX'], "endY": payload['endY'], "color": payload['color']}
-                        drawingBoard_collection.insert_one(draw_dict)
+                    try:
+                        extended_payload_length = (received_data[2]<<56) + (received_data[3]<<48) + (received_data[4]<<40) + (received_data[5]<<32) + (received_data[6]<<24) + (received_data[7]<<16) + (received_data[8]<<8) + received_data[9]
+                    except IndexError:
+                        pass
 
-                        # broadcast this drawing to every active user with WS connection
-                        broadcast_drawing_content(payload)
 
-                    if payload['messageType'] == 'echo_client':
-                        response_dict = {"messageType": "echo_server", "text": payload['text']}
-                        json_decode = json.dumps(response_dict).encode()
-                        self.request.sendall(generate_ws_frame(json_decode))
+
+                    if len(received_data) > extended_payload_length + 14:
+                        correct_bytes_needed = received_data[0 : extended_payload_length+14]
+                        extra_bytes = received_data[extended_payload_length+14:]
+                        frame = parse_ws_frame(correct_bytes_needed)
+
+                        if (continuation_payload == b'') and (fin_bit == 1):
+                            payload = json.loads(frame.payload.decode())
+                        # JSON ERROR BECAUSE SINCE FIN BIT IS 0, WE AREN'T DONE BUILDING THE TOTAL PAYLOAD, THERE IS NOT CLOSING }
+                        elif fin_bit == 1:
+                            continuation_payload = continuation_payload + frame.payload
+                            payload = json.loads(continuation_payload.decode())
+                        #fin_bit = 0
+                        else:
+                            continuation_payload+=frame.payload
+
+                        #payload = json.loads(frame.payload.decode()) #this is
+
+                        #assign received_data to the extra bytes not used
+                        received_data = extra_bytes
+                    else:
+                        total_receive_bytes = received_data
+                        while len(total_receive_bytes) < extended_payload_length + 14:
+                            total_receive_bytes += self.request.recv(2048)
+                        #print("total_receive_bytes:", total_receive_bytes)
+
+                        frame = parse_ws_frame(total_receive_bytes)
+
+                        if (continuation_payload == b'') and (fin_bit == 1):
+                            payload = json.loads(frame.payload.decode())
+                        # JSON ERROR BECAUSE SINCE FIN BIT IS 0, WE AREN'T DONE BUILDING THE TOTAL PAYLOAD, THERE IS NOT CLOSING }
+                        elif fin_bit == 1:
+                            continuation_payload = continuation_payload + frame.payload
+                            payload = json.loads(continuation_payload.decode())
+                        # fin_bit = 0
+                        else:
+                            continuation_payload += frame.payload
+
+                        # payload = json.loads(frame.payload.decode()) #this is
+
+                        #assign the extra bytes not used from the socket to received_data
+                        received_data = total_receive_bytes[frame.payload_length+14:]
+
+
+                    #finbit is 1 ->  all continuation frames are ready to combine
+                    if fin_bit == 1:
+                        continuation_payload = b''
+                        # means user is drawing on the drawing board
+                        if payload['messageType'] == 'drawing':
+                            # update our db storing all drawings
+                            draw_dict = {"startX": payload['startX'], "startY": payload['startY'],
+                                         "endX": payload['endX'], "endY": payload['endY'], "color": payload['color']}
+                            drawingBoard_collection.insert_one(draw_dict)
+
+                            # broadcast this drawing to every active user with WS connection
+                            broadcast_drawing_content(payload)
+
+                        if payload['messageType'] == 'echo_client':
+                            response_dict = {"messageType": "echo_server", "text": payload['text']}
+                            json_decode = json.dumps(response_dict).encode()
+                            self.request.sendall(generate_ws_frame(json_decode))
 
 
                 print("buffer recv data:",received_data)

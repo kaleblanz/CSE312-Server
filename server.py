@@ -191,7 +191,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             while True:
 
                 #only ask for new bytes if received data has 0 bytes left to read
-                if len(received_data) == 0:
+                if len(received_data) <= 2:
                     received_data = self.request.recv(2048)
 
                 opcode_mask = 0b00001111
@@ -249,7 +249,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                         payload = json.loads(frame.payload.decode())
                         print(f"payload:{payload}")
                         # received_data is now an empty string because we read everything in the socket
-                        received_data = b''
+                        received_data = total_receive_bytes[frame.payload_length+6:]
 
                     #means user is drawing on the drawing board
                     if payload['messageType'] == 'drawing':
@@ -274,17 +274,32 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
                 #buffering for payload size between >=126 and <65536
                 if payload_length == 126:
-                    extended_payload_length = (received_data[2]<<8) + received_data[3]
-                    print(f"inside buffering, extended_payload_length:{extended_payload_length}")
-                    total_receive_bytes = received_data
-                    while len(total_receive_bytes) < extended_payload_length + 8:
-                        total_receive_bytes += self.request.recv(2048)
-                    print("total_receive_bytes:",total_receive_bytes)
+                    extended_payload_length = (received_data[2] << 8) + received_data[3]
 
-                    frame = parse_ws_frame(total_receive_bytes)
-                    payload = json.loads(frame.payload.decode())
-                    print(f"payload:{payload}")
-                    # self.request.sendall(generate_ws_frame(json_result.encode()))
+                    # BACK TO BACK FRAMES
+                    # first check if we read too many bytes
+                    if len(received_data) > extended_payload_length + 8:
+                        correct_bytes_needed = received_data[0:extended_payload_length + 8]
+                        extra_bytes = received_data[extended_payload_length + 8:]
+                        frame = parse_ws_frame(correct_bytes_needed)
+                        payload = json.loads(frame.payload.decode())
+                        print(payload)
+
+                        # store the bytes not used in received_data
+                        received_data = extra_bytes
+
+                    else:
+                        print(f"inside buffering, extended_payload_length:{extended_payload_length}")
+                        total_receive_bytes = received_data
+                        while len(total_receive_bytes) < extended_payload_length + 8:
+                            total_receive_bytes += self.request.recv(2048)
+                        #print("total_receive_bytes:",total_receive_bytes)
+
+                        frame = parse_ws_frame(total_receive_bytes)
+                        payload = json.loads(frame.payload.decode())
+                        #received_data equals the leftover bytes from total_rec_bytes that were not used when called parse_frame
+                        received_data = total_receive_bytes[frame.payload_length+8:]
+
                     # means user is drawing on the drawing board
                     if payload['messageType'] == 'drawing':
                         # update our db storing all drawings

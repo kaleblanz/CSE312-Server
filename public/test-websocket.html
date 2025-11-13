@@ -100,12 +100,13 @@
       return;
     }
 
-    ws.send(
-      JSON.stringify({
-        messageType: "echo_client",
-        text: text,
-      })
-    );
+    ws.send(JSON.stringify({messageType: "echo_client",text: text,}));
+    /*
+    ws.send(JSON.stringify({messageType: "echo_client",text: text,}));
+    ws.send(JSON.stringify({messageType: "echo_client",text: text,}));
+    ws.send(JSON.stringify({messageType: "echo_client",text: text,}));
+    ws.send(JSON.stringify({messageType: "echo_client",text: text,}));
+    */
   }
 
   // Initialize on page load

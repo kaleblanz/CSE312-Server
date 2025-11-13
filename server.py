@@ -192,8 +192,8 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             while True:
 
                 #only ask for new bytes if received data has 0 bytes left to read
-                if len(received_data) <= 2:
-                    received_data = self.request.recv(2048)
+                if len(received_data) < 2:
+                    received_data += self.request.recv(2048)
 
                 opcode_mask = 0b00001111
                 opcode = received_data[0] & opcode_mask
@@ -341,6 +341,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
                         # store the bytes not used in received_data
                         received_data = extra_bytes
+                        print('in back to back frames for 126')
 
                     else:
                         print(f"inside buffering, extended_payload_length:{extended_payload_length}")
@@ -366,6 +367,8 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
                         #received_data equals the leftover bytes from total_rec_bytes that were not used when called parse_frame
                         received_data = total_receive_bytes[frame.payload_length+8:]
+                        print(f"DEBUG: this is received_data for 126, total_rec_bytes from [frame.payload_length:frame.payload_length+8]:{total_receive_bytes[frame.payload_length:frame.payload_length+8]}")
+
 
                     if fin_bit == 1:
                         continuation_payload = b''
@@ -418,6 +421,8 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
                         #assign received_data to the extra bytes not used
                         received_data = extra_bytes
+                        print('in back to back frames for 127')
+
                     else:
                         total_receive_bytes = received_data
                         while len(total_receive_bytes) < extended_payload_length + 14:
@@ -440,6 +445,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
                         #assign the extra bytes not used from the socket to received_data
                         received_data = total_receive_bytes[frame.payload_length+14:]
+                        print(f"DEBUG: this is received_data for 127, total_rec_bytes from [frame.payload_length:frame.payload_length+14]:{total_receive_bytes[frame.payload_length:frame.payload_length+14]}")
 
 
                     #finbit is 1 ->  all continuation frames are ready to combine

@@ -74,6 +74,8 @@ def render_index_html(request, handler):
         file_path = "public/view-video.html"
     if "/videotube/set-thumbnail" in file_path:
         file_path = "public/set-thumbnail.html"
+    if "/video-call/" in file_path:
+        file_path = "public/video-call-room.html"
     with open(file_path, "rb") as html_file:
         #the body of the response is reading the html file
         html_body = html_file.read()

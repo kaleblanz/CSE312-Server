@@ -25,7 +25,7 @@ video_collection = db['videos']
 drawingBoard_collection = db['drawing_board']
 
 
-"""
+
 class Deez():
     def __init__(self):
         self.roof = ""
@@ -36,13 +36,19 @@ object_1 = Deez()
 object_2 = Deez()
 object_3 = Deez()
 object_4 = Deez()
-print("obj1:",object_1)
-print("obj2:",object_2)
-print("obj3:",object_3)
-print("obj4:",object_4)
+#print("obj1:",object_1)
+#print("obj2:",object_2)
+#print("obj3:",object_3)
+#print("obj4:",object_4)
 
 user_list = [{"username" : 'bob', "tcp" : object_1}, {"username" : 'steve', "tcp" : object_2}, {"username" : 'ricky', "tcp" : object_3},{"username" : 'jack', "tcp" : object_4}]
-print(user_list)
+#print(user_list)
 user_list.remove({"username" : 'jack', "tcp" : object_4})
-print(user_list)
-"""
+#print(user_list)
+
+lod = [{"1":"a","2":'b'},{'3':'z','1':'b'},{'as':'31'},{'po':'sa','sdw':'w2'}]
+if {'1':'a'} not in lod:
+    print(f"{'1:a'} not in lod")
+else:
+    print(f"{'1:a'} IS in lod")
+

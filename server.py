@@ -3,6 +3,7 @@ import socketserver
 
 from util.database import drawingBoard_collection
 from util.request import Request
+from util.response import Response
 from util.router import Router
 from util.hello_path import hello_path
 from util.websockets import *
@@ -14,7 +15,7 @@ from path_functions import *
 from util.multipart import parse_multipart
 
 user_list = []
-
+video_call = []
 class MyTCPHandler(socketserver.BaseRequestHandler):
 
     def __init__(self, request, client_address, server):
@@ -156,8 +157,29 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         #print("--- end of data ---\n\n")
         request = Request(received_data)
 
+        print(f"request.path:{request.path}")
+
+        #user wants to create a room
+        if request.path == "/api/video-calls":
+            auth_token = request.cookies['auth_token']
+            hash_auth = hashlib.sha256(auth_token.encode()).hexdigest()
+            user = user_collection.find_one({"auth_token": hash_auth})
+
+            name_of_room = json.loads(request.body.decode())['name']
+            id_of_room = str(uuid.uuid4())
+            socket_id = str(uuid.uuid4())
+            response = Response()
+            response.set_status(200,'OK')
+            response.json({"id" : id_of_room})
+            self.request.sendall(response.to_data())
+            video_call.append({"id_of_room" : id_of_room, "name_of_room":name_of_room,
+            "socket_id" : socket_id, "username": user['username'], "tcp_handler":self})
+            return
+
+
+
         #true when user requests a WebSocket
-        if request.path == "/websocket":
+        elif request.path == "/websocket":
             auth_token = request.cookies['auth_token']
 
             hash_auth = hashlib.sha256(auth_token.encode()).hexdigest()
@@ -292,6 +314,87 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
                     if fin_bit == 1:
                         continuation_payload = b''
+
+                        if payload['messageType'] == 'offer':
+                            socket_id = payload['socketId']
+                            for call in video_call:
+                                if socket_id == call['socket_id']:
+                                    payload['username'] = call['username']
+                            json_decode = json.dumps(payload).encode()
+                            self.request.sendall(generate_ws_frame(json_decode))
+
+                        if payload['messageType'] == 'answer':
+                            socket_id = payload['socketId']
+                            for call in video_call:
+                                if socket_id == call['socket_id']:
+                                    payload['name'] = call['username']
+                            json_decode = json.dumps(payload).encode()
+                            self.request.sendall(generate_ws_frame(json_decode))
+
+                        if payload['messageType'] == 'ice_candidate':
+                            socket_id = payload['socketId']
+                            json_decode = json.dumps(payload).encode()
+                            self.request.sendall(generate_ws_frame(json_decode))
+
+
+                        if payload['messageType'] == 'join_call':
+                            id_of_room = payload['callId']
+                            message = {"messageType":"call_info"}
+                            for call in video_call:
+                                if id_of_room == call['id_of_room']:
+                                    message['name'] = call['name_of_room']
+                            json_decode = json.dumps(message).encode()
+                            self.request.sendall(generate_ws_frame(json_decode))
+
+                            #when user joins call, broadcast user_joined to all users in the room
+                            broad_cast_message = {"messageType": "user_joined",
+                            "socketId":"", "username":user['username']}
+
+                            #assign the tcp handler for this user and give our message we're broad_cast_message socketID
+                            for call in video_call:
+                                if call['username'] == user['username']:
+                                    #socket_id = str(uuid.uuid4())
+                                    broad_cast_message['socketId'] = call['socket_id']
+                                    call['tcp_handler'] = self
+
+                            #add new user
+                            if username_in_video(user['username']) == False:
+                                if broad_cast_message['socketId'] == '':
+                                    socket_id = str(uuid.uuid4())
+                                    broad_cast_message['socketId'] = socket_id
+                                    video_call.append({"id_of_room": id_of_room, "name_of_room": message['name'],
+                                                   "socket_id": broad_cast_message['socketId'], "username": user['username'],
+                                                   "tcp_handler": self})
+
+                            #search through all videos, if it matches id of the room, broadcast it
+                            if only1personInRoom(id_of_room) > 1:
+                                for call in video_call:
+                                    if call['id_of_room'] == id_of_room:
+                                        tcp_handler = call['tcp_handler']
+                                        json_result = json.dumps(broad_cast_message)
+                                        tcp_handler.request.sendall(generate_ws_frame(json_result.encode()))
+
+
+
+
+
+                        if payload['messageType'] == 'get_calls':
+                            call_list = []
+                            for call in video_call:
+                                call_list.append({"id":call['id_of_room'],"name":call['name_of_room']})
+                            message = {"messageType": "call_list", "calls":call_list}
+                            json_decode = json.dumps(message).encode()
+                            self.request.sendall(generate_ws_frame(json_decode))
+
+                        if payload['messageType'] == 'join_info':
+                            room_id_being_joined = payload['callId']
+                            message = {"messageType": "call_info"}
+                            for call in video_call:
+                                if call['id_of_room'] == room_id_being_joined:
+                                    message['name'] = call['name_of_room']
+                            json_decode = json.dumps(message).encode()
+                            self.request.sendall(generate_ws_frame(json_decode))
+
                         #means user is drawing on the drawing board
                         if payload['messageType'] == 'drawing':
                             #update our db storing all drawings
@@ -372,6 +475,82 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
                     if fin_bit == 1:
                         continuation_payload = b''
+
+                        if payload['messageType'] == 'offer':
+                            socket_id = payload['socketId']
+                            for call in video_call:
+                                if socket_id == call['socket_id']:
+                                    payload['username'] = call['username']
+                            json_decode = json.dumps(payload).encode()
+                            self.request.sendall(generate_ws_frame(json_decode))
+
+                        if payload['messageType'] == 'answer':
+                            socket_id = payload['socketId']
+                            for call in video_call:
+                                if socket_id == call['socket_id']:
+                                    payload['name'] = call['username']
+                            json_decode = json.dumps(payload).encode()
+                            self.request.sendall(generate_ws_frame(json_decode))
+
+                        if payload['messageType'] == 'ice_candidate':
+                            socket_id = payload['socketId']
+                            json_decode = json.dumps(payload).encode()
+                            self.request.sendall(generate_ws_frame(json_decode))
+
+                        if payload['messageType'] == 'join_call':
+                            id_of_room = payload['callId']
+                            message = {"messageType": "call_info"}
+                            for call in video_call:
+                                if id_of_room == call['id_of_room']:
+                                    message['name'] = call['name_of_room']
+                            json_decode = json.dumps(message).encode()
+                            self.request.sendall(generate_ws_frame(json_decode))
+
+                            # when user joins call, broadcast user_joined to all users in the room
+                            broad_cast_message = {"messageType": "user_joined",
+                                                  "socketId": "", "username": user['username']}
+
+                            # assign the tcp handler for this user and give our message we're broad_cast_message socketID
+                            for call in video_call:
+                                if call['username'] == user['username']:
+                                    # socket_id = str(uuid.uuid4())
+                                    broad_cast_message['socketId'] = call['socket_id']
+                                    call['tcp_handler'] = self
+
+                            # add new user
+                            if username_in_video(user['username']) == False:
+                                if broad_cast_message['socketId'] == '':
+                                    socket_id = str(uuid.uuid4())
+                                    broad_cast_message['socketId'] = socket_id
+                                    video_call.append({"id_of_room": id_of_room, "name_of_room": message['name'],
+                                                       "socket_id": broad_cast_message['socketId'],
+                                                       "username": user['username'],
+                                                       "tcp_handler": self})
+
+                            # search through all videos, if it matches id of the room, broadcast it
+                            if only1personInRoom(id_of_room) > 1:
+                                for call in video_call:
+                                    if call['id_of_room'] == id_of_room:
+                                        tcp_handler = call['tcp_handler']
+                                        json_result = json.dumps(broad_cast_message)
+                                        tcp_handler.request.sendall(generate_ws_frame(json_result.encode()))
+
+                        if payload['messageType'] == 'get_calls':
+                            call_list = []
+                            for call in video_call:
+                                call_list.append({"id": call['id_of_room'], "name": call['name_of_room']})
+                            message = {"messageType": "call_list", "calls": call_list}
+                            json_decode = json.dumps(message).encode()
+                            self.request.sendall(generate_ws_frame(json_decode))
+
+                        if payload['messageType'] == 'join_info':
+                            room_id_being_joined = payload['callId']
+                            message = {"messageType": "call_info"}
+                            for call in video_call:
+                                if call['id_of_room'] == room_id_being_joined:
+                                    message['name'] = call['name_of_room']
+                            json_decode = json.dumps(message).encode()
+                            self.request.sendall(generate_ws_frame(json_decode))
 
                     # means user is drawing on the drawing board
                         if payload['messageType'] == 'drawing':
@@ -541,7 +720,18 @@ def remove_user_from_user_list(name):
     return new_user_list
 
 
+def only1personInRoom(id_of_room):
+    count = 0
+    for call in video_call:
+        if call['id_of_room'] == id_of_room:
+            count = count + 1
+    return count
 
+def username_in_video(username):
+    for call in video_call:
+        if call['username'] == username:
+            return True
+    return False
 
 if __name__ == "__main__":
     main()

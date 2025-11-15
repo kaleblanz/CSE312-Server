@@ -357,6 +357,8 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                                     broad_cast_message['socketId'] = call['socket_id']
                                     call['tcp_handler'] = self
 
+
+
                             #add new user
                             if username_in_video(user['username']) == False:
                                 if broad_cast_message['socketId'] == '':
@@ -366,14 +368,29 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                                                    "socket_id": broad_cast_message['socketId'], "username": user['username'],
                                                    "tcp_handler": self})
 
+
                             #search through all videos, if it matches id of the room, broadcast it
                             if only1personInRoom(id_of_room) > 1:
                                 for call in video_call:
                                     if call['id_of_room'] == id_of_room:
                                         tcp_handler = call['tcp_handler']
                                         json_result = json.dumps(broad_cast_message)
-                                        tcp_handler.request.sendall(generate_ws_frame(json_result.encode()))
+                                        if user['username'] != call['username']:
+                                            tcp_handler.request.sendall(generate_ws_frame(json_result.encode()))
 
+                            # send this new user existing participants
+                            if only1personInRoom(id_of_room) > 1:
+                                existing_participants = []
+                                for call in video_call:
+                                    if id_of_room == call['id_of_room']:
+                                        participant = {"socketId": call['socket_id'],
+                                                       'username': call['username']}
+                                        if self != call['tcp_handler']:
+                                            existing_participants.append(participant)
+                                dict_existing_participants = {"messageType": "existing_participants",
+                                                              "participants": existing_participants}
+                                json_result = json.dumps(dict_existing_participants)
+                                self.request.sendall(generate_ws_frame(json_result.encode()))
 
 
 
@@ -517,6 +534,8 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                                     broad_cast_message['socketId'] = call['socket_id']
                                     call['tcp_handler'] = self
 
+
+
                             # add new user
                             if username_in_video(user['username']) == False:
                                 if broad_cast_message['socketId'] == '':
@@ -533,7 +552,22 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                                     if call['id_of_room'] == id_of_room:
                                         tcp_handler = call['tcp_handler']
                                         json_result = json.dumps(broad_cast_message)
-                                        tcp_handler.request.sendall(generate_ws_frame(json_result.encode()))
+                                        if user['username'] != call['username']:
+                                            tcp_handler.request.sendall(generate_ws_frame(json_result.encode()))
+
+                            # send this new user existing participants
+                            if only1personInRoom(id_of_room) > 1:
+                                existing_participants = []
+                                for call in video_call:
+                                    if id_of_room == call['id_of_room']:
+                                        participant = {"socketId": call['socket_id'],
+                                                       'username': call['username']}
+                                        if self != call['tcp_handler']:
+                                            existing_participants.append(participant)
+                                dict_existing_participants = {"messageType": "existing_participants",
+                                                              "participants": existing_participants}
+                                json_result = json.dumps(dict_existing_participants)
+                                self.request.sendall(generate_ws_frame(json_result.encode()))
 
                         if payload['messageType'] == 'get_calls':
                             call_list = []

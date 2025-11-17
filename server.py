@@ -242,7 +242,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                     #break the while true
 
                     #user_left for WebRTC
-
+                    #when 3 enter zoom, they leave, and all 3 join a new one, leaving is wrong
                     message = {"messageType":"user_left", "sockedId":""}
                     num_of_people_in_same_room = 0
                     call_of_deleted_user = None
@@ -261,7 +261,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
                     if num_of_people_in_same_room >= 2:
                         #only send this if user was in a room
-                        if id_of_user_was_in != -1:
+                        if id_of_user_was_in == call_of_deleted_user['id_of_room']:
                             for call in video_call:
                                 if (call['id_of_room'] == id_of_user_was_in) and (name != call['username']):
                                     tcp_handler = call['tcp_handler']
@@ -416,13 +416,14 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
 
                             #add new user
-                            if username_in_video(user['username']) == False:
-                                if broad_cast_message['socketId'] == '':
-                                    socket_id = str(uuid.uuid4())
-                                    broad_cast_message['socketId'] = socket_id
-                                    video_call.append({"id_of_room": id_of_room, "name_of_room": message['name'],
-                                                   "socket_id": broad_cast_message['socketId'], "username": user['username'],
-                                                   "tcp_handler": self})
+                            socket_id = broad_cast_message['socketId']
+                            if socket_id_in_video(socket_id) == False:
+                                #if broad_cast_message['socketId'] == '':
+                                socket_id = str(uuid.uuid4())
+                                broad_cast_message['socketId'] = socket_id
+                                video_call.append({"id_of_room": id_of_room, "name_of_room": message['name'],
+                                               "socket_id": broad_cast_message['socketId'], "username": user['username'],
+                                               "tcp_handler": self})
 
 
                             #search through all videos, if it matches id of the room, broadcast it
@@ -619,14 +620,15 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
 
                             # add new user
-                            if username_in_video(user['username']) == False:
-                                if broad_cast_message['socketId'] == '':
-                                    socket_id = str(uuid.uuid4())
-                                    broad_cast_message['socketId'] = socket_id
-                                    video_call.append({"id_of_room": id_of_room, "name_of_room": message['name'],
-                                                       "socket_id": broad_cast_message['socketId'],
-                                                       "username": user['username'],
-                                                       "tcp_handler": self})
+                            socket_id = broad_cast_message['socketId']
+                            if socket_id_in_video(socket_id) == False:
+                                #if broad_cast_message['socketId'] == '':
+                                socket_id = str(uuid.uuid4())
+                                broad_cast_message['socketId'] = socket_id
+                                video_call.append({"id_of_room": id_of_room, "name_of_room": message['name'],
+                                                   "socket_id": broad_cast_message['socketId'],
+                                                   "username": user['username'],
+                                                   "tcp_handler": self})
 
                             # search through all videos, if it matches id of the room, broadcast it
                             if only1personInRoom(id_of_room) > 1:
@@ -813,13 +815,13 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
 
                             #add new user
-                            if username_in_video(user['username']) == False:
-                                if broad_cast_message['socketId'] == '':
-                                    socket_id = str(uuid.uuid4())
-                                    broad_cast_message['socketId'] = socket_id
-                                    video_call.append({"id_of_room": id_of_room, "name_of_room": message['name'],
-                                                   "socket_id": broad_cast_message['socketId'], "username": user['username'],
-                                                   "tcp_handler": self})
+                            socket_id = broad_cast_message['socketId']
+                            if socket_id_in_video(socket_id) == False:
+                                socket_id = str(uuid.uuid4())
+                                broad_cast_message['socketId'] = socket_id
+                                video_call.append({"id_of_room": id_of_room, "name_of_room": message['name'],
+                                               "socket_id": broad_cast_message['socketId'], "username": user['username'],
+                                               "tcp_handler": self})
 
 
                             #search through all videos, if it matches id of the room, broadcast it
@@ -965,10 +967,16 @@ def only1personInRoom(id_of_room):
             count = count + 1
     return count
 
-def username_in_video(username):
+def socket_id_in_video(socket_id):
+    for call in video_call:
+        if call['socket_id'] == socket_id:
+            return True
+    return False
+def user_in_diff_room(username, id_of_new_room):
     for call in video_call:
         if call['username'] == username:
-            return True
+            if call['id_of_room'] != id_of_new_room:
+                return True
     return False
 
 if __name__ == "__main__":

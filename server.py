@@ -240,6 +240,39 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                     broadcast_active_user_list()
 
                     #break the while true
+
+                    #user_left for WebRTC
+
+                    message = {"messageType":"user_left", "sockedId":""}
+                    num_of_people_in_same_room = 0
+                    call_of_deleted_user = None
+                    id_of_user_was_in = -1
+                    for call in video_call:
+                        if call['username'] == name:
+                            id_of_user_was_in = call['id_of_room']
+                            #add sockedId of the user who disconnected their WS connection
+                            message['sockedId'] = call['socket_id']
+                            call_of_deleted_user = call
+
+                    #get the number of people in the call
+                    for call in video_call:
+                        if call['id_of_room'] == id_of_user_was_in:
+                            num_of_people_in_same_room = num_of_people_in_same_room + 1
+
+                    if num_of_people_in_same_room >= 2:
+                        #only send this if user was in a room
+                        if id_of_user_was_in != -1:
+                            for call in video_call:
+                                if (call['id_of_room'] == id_of_user_was_in) and (name != call['username']):
+                                    tcp_handler = call['tcp_handler']
+                                    json_decode = json.dumps(message).encode()
+                                    tcp_handler.request.sendall(generate_ws_frame(json_decode))
+                            #remove user from ds
+                            video_call.remove(call_of_deleted_user)
+
+
+
+
                     return
 
 
@@ -315,26 +348,49 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                     if fin_bit == 1:
                         continuation_payload = b''
 
+
+
                         if payload['messageType'] == 'offer':
                             socket_id = payload['socketId']
                             for call in video_call:
                                 if socket_id == call['socket_id']:
-                                    payload['username'] = call['username']
+                                    # payload['username'] = call['username']
+                                    tcp_handler = call['tcp_handler']
+                                if call['username'] == user['username']:
+                                    payload['socketId'] = call['socket_id']
+
+                            payload['username'] = user['username']
+
                             json_decode = json.dumps(payload).encode()
-                            self.request.sendall(generate_ws_frame(json_decode))
+                            tcp_handler.request.sendall(generate_ws_frame(json_decode))
+                            # self.request.sendall(generate_ws_frame(json_decode))
 
                         if payload['messageType'] == 'answer':
                             socket_id = payload['socketId']
                             for call in video_call:
                                 if socket_id == call['socket_id']:
-                                    payload['name'] = call['username']
+                                    # payload['username'] = call['username']
+                                    tcp_handler = call['tcp_handler']
+                                if call['username'] == user['username']:
+                                    payload['socketId'] = call['socket_id']
+
+                            payload['username'] = user['username']
+
                             json_decode = json.dumps(payload).encode()
-                            self.request.sendall(generate_ws_frame(json_decode))
+                            tcp_handler.request.sendall(generate_ws_frame(json_decode))
+                            # self.request.sendall(generate_ws_frame(json_decode))
 
                         if payload['messageType'] == 'ice_candidate':
                             socket_id = payload['socketId']
+                            for call in video_call:
+                                if socket_id == call['socket_id']:
+                                    tcp_handler = call['tcp_handler']
+                                if call['username'] == user['username']:
+                                    payload['socketId'] = call['socket_id']
+
                             json_decode = json.dumps(payload).encode()
-                            self.request.sendall(generate_ws_frame(json_decode))
+                            tcp_handler.request.sendall(generate_ws_frame(json_decode))
+                            # self.request.sendall(generate_ws_frame(json_decode))
 
 
                         if payload['messageType'] == 'join_call':
@@ -397,8 +453,11 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
                         if payload['messageType'] == 'get_calls':
                             call_list = []
+                            no_duplicates = []
                             for call in video_call:
-                                call_list.append({"id":call['id_of_room'],"name":call['name_of_room']})
+                                if call['id_of_room'] not in no_duplicates:
+                                    call_list.append({"id":call['id_of_room'],"name":call['name_of_room']})
+                                    no_duplicates.append(call['id_of_room'])
                             message = {"messageType": "call_list", "calls":call_list}
                             json_decode = json.dumps(message).encode()
                             self.request.sendall(generate_ws_frame(json_decode))
@@ -493,26 +552,49 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                     if fin_bit == 1:
                         continuation_payload = b''
 
+
                         if payload['messageType'] == 'offer':
                             socket_id = payload['socketId']
                             for call in video_call:
                                 if socket_id == call['socket_id']:
-                                    payload['username'] = call['username']
+                                    #payload['username'] = call['username']
+                                    tcp_handler = call['tcp_handler']
+                                if call['username'] == user['username']:
+                                    payload['socketId'] = call['socket_id']
+
+                            payload['username'] = user['username']
+
                             json_decode = json.dumps(payload).encode()
-                            self.request.sendall(generate_ws_frame(json_decode))
+                            tcp_handler.request.sendall(generate_ws_frame(json_decode))
+                            #self.request.sendall(generate_ws_frame(json_decode))
 
                         if payload['messageType'] == 'answer':
                             socket_id = payload['socketId']
                             for call in video_call:
                                 if socket_id == call['socket_id']:
-                                    payload['name'] = call['username']
+                                    # payload['username'] = call['username']
+                                    tcp_handler = call['tcp_handler']
+                                if call['username'] == user['username']:
+                                    payload['socketId'] = call['socket_id']
+
+                            payload['username'] = user['username']
+
                             json_decode = json.dumps(payload).encode()
-                            self.request.sendall(generate_ws_frame(json_decode))
+                            tcp_handler.request.sendall(generate_ws_frame(json_decode))
+                            # self.request.sendall(generate_ws_frame(json_decode))
 
                         if payload['messageType'] == 'ice_candidate':
                             socket_id = payload['socketId']
+                            for call in video_call:
+                                if socket_id == call['socket_id']:
+                                    tcp_handler = call['tcp_handler']
+                                if call['username'] == user['username']:
+                                    payload['socketId'] = call['socket_id']
+
                             json_decode = json.dumps(payload).encode()
-                            self.request.sendall(generate_ws_frame(json_decode))
+                            tcp_handler.request.sendall(generate_ws_frame(json_decode))
+                            #self.request.sendall(generate_ws_frame(json_decode))
+
 
                         if payload['messageType'] == 'join_call':
                             id_of_room = payload['callId']

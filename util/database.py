@@ -31,7 +31,7 @@ class Deez():
         self.roof = ""
 
 
-
+"""
 object_1 = Deez()
 object_2 = Deez()
 object_3 = Deez()
@@ -52,3 +52,4 @@ if {'1':'a'} not in lod:
 else:
     print(f"{'1:a'} IS in lod")
 
+"""

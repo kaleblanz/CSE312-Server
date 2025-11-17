@@ -746,14 +746,136 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                     #finbit is 1 ->  all continuation frames are ready to combine
                     if fin_bit == 1:
                         continuation_payload = b''
-                        # means user is drawing on the drawing board
+
+                        if payload['messageType'] == 'offer':
+                            socket_id = payload['socketId']
+                            for call in video_call:
+                                if socket_id == call['socket_id']:
+                                    # payload['username'] = call['username']
+                                    tcp_handler = call['tcp_handler']
+                                if call['username'] == user['username']:
+                                    payload['socketId'] = call['socket_id']
+
+                            payload['username'] = user['username']
+
+                            json_decode = json.dumps(payload).encode()
+                            tcp_handler.request.sendall(generate_ws_frame(json_decode))
+                            # self.request.sendall(generate_ws_frame(json_decode))
+
+                        if payload['messageType'] == 'answer':
+                            socket_id = payload['socketId']
+                            for call in video_call:
+                                if socket_id == call['socket_id']:
+                                    # payload['username'] = call['username']
+                                    tcp_handler = call['tcp_handler']
+                                if call['username'] == user['username']:
+                                    payload['socketId'] = call['socket_id']
+
+                            payload['username'] = user['username']
+
+                            json_decode = json.dumps(payload).encode()
+                            tcp_handler.request.sendall(generate_ws_frame(json_decode))
+                            # self.request.sendall(generate_ws_frame(json_decode))
+
+                        if payload['messageType'] == 'ice_candidate':
+                            socket_id = payload['socketId']
+                            for call in video_call:
+                                if socket_id == call['socket_id']:
+                                    tcp_handler = call['tcp_handler']
+                                if call['username'] == user['username']:
+                                    payload['socketId'] = call['socket_id']
+
+                            json_decode = json.dumps(payload).encode()
+                            tcp_handler.request.sendall(generate_ws_frame(json_decode))
+                            # self.request.sendall(generate_ws_frame(json_decode))
+
+
+                        if payload['messageType'] == 'join_call':
+                            id_of_room = payload['callId']
+                            message = {"messageType":"call_info"}
+                            for call in video_call:
+                                if id_of_room == call['id_of_room']:
+                                    message['name'] = call['name_of_room']
+                            json_decode = json.dumps(message).encode()
+                            self.request.sendall(generate_ws_frame(json_decode))
+
+                            #when user joins call, broadcast user_joined to all users in the room
+                            broad_cast_message = {"messageType": "user_joined",
+                            "socketId":"", "username":user['username']}
+
+                            #assign the tcp handler for this user and give our message we're broad_cast_message socketID
+                            for call in video_call:
+                                if call['username'] == user['username']:
+                                    #socket_id = str(uuid.uuid4())
+                                    broad_cast_message['socketId'] = call['socket_id']
+                                    call['tcp_handler'] = self
+
+
+
+                            #add new user
+                            if username_in_video(user['username']) == False:
+                                if broad_cast_message['socketId'] == '':
+                                    socket_id = str(uuid.uuid4())
+                                    broad_cast_message['socketId'] = socket_id
+                                    video_call.append({"id_of_room": id_of_room, "name_of_room": message['name'],
+                                                   "socket_id": broad_cast_message['socketId'], "username": user['username'],
+                                                   "tcp_handler": self})
+
+
+                            #search through all videos, if it matches id of the room, broadcast it
+                            if only1personInRoom(id_of_room) > 1:
+                                for call in video_call:
+                                    if call['id_of_room'] == id_of_room:
+                                        tcp_handler = call['tcp_handler']
+                                        json_result = json.dumps(broad_cast_message)
+                                        if user['username'] != call['username']:
+                                            tcp_handler.request.sendall(generate_ws_frame(json_result.encode()))
+
+                            # send this new user existing participants
+                            if only1personInRoom(id_of_room) > 1:
+                                existing_participants = []
+                                for call in video_call:
+                                    if id_of_room == call['id_of_room']:
+                                        participant = {"socketId": call['socket_id'],
+                                                       'username': call['username']}
+                                        if self != call['tcp_handler']:
+                                            existing_participants.append(participant)
+                                dict_existing_participants = {"messageType": "existing_participants",
+                                                              "participants": existing_participants}
+                                json_result = json.dumps(dict_existing_participants)
+                                self.request.sendall(generate_ws_frame(json_result.encode()))
+
+
+
+
+                        if payload['messageType'] == 'get_calls':
+                            call_list = []
+                            no_duplicates = []
+                            for call in video_call:
+                                if call['id_of_room'] not in no_duplicates:
+                                    call_list.append({"id":call['id_of_room'],"name":call['name_of_room']})
+                                    no_duplicates.append(call['id_of_room'])
+                            message = {"messageType": "call_list", "calls":call_list}
+                            json_decode = json.dumps(message).encode()
+                            self.request.sendall(generate_ws_frame(json_decode))
+
+                        if payload['messageType'] == 'join_info':
+                            room_id_being_joined = payload['callId']
+                            message = {"messageType": "call_info"}
+                            for call in video_call:
+                                if call['id_of_room'] == room_id_being_joined:
+                                    message['name'] = call['name_of_room']
+                            json_decode = json.dumps(message).encode()
+                            self.request.sendall(generate_ws_frame(json_decode))
+
+                        #means user is drawing on the drawing board
                         if payload['messageType'] == 'drawing':
-                            # update our db storing all drawings
-                            draw_dict = {"startX": payload['startX'], "startY": payload['startY'],
-                                         "endX": payload['endX'], "endY": payload['endY'], "color": payload['color']}
+                            #update our db storing all drawings
+                            draw_dict = {"startX" : payload['startX'], "startY": payload['startY'] ,
+                             "endX": payload['endX'] , "endY":  payload['endY'] ,  "color": payload['color'] }
                             drawingBoard_collection.insert_one(draw_dict)
 
-                            # broadcast this drawing to every active user with WS connection
+                            #broadcast this drawing to every active user with WS connection
                             broadcast_drawing_content(payload)
 
                         if payload['messageType'] == 'echo_client':

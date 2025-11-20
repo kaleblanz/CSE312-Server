@@ -538,7 +538,7 @@ def post_login_route(request, handler):
                     # create our authentication token
                     auth_token = str(uuid.uuid4())
                     # add a cookie that is our auth token with the HttpOnly and max age directive
-                    response.cookies({"auth_token": auth_token + "; HttpOnly; Max-Age=7200; Path=/"})
+                    response.cookies({"auth_token": auth_token + "; HttpOnly; Max-Age=7200; Path=/; Secure"})
 
 
                     # hash the auth token and update the users DB
@@ -624,7 +624,7 @@ def post_login_route(request, handler):
     #create our authentication token
     auth_token = str(uuid.uuid4())
     #add a cookie that is our auth token with the HttpOnly and max age directive
-    response.cookies({"auth_token":auth_token + "; HttpOnly; Max-Age=7200; Path=/"})
+    response.cookies({"auth_token":auth_token + "; HttpOnly; Max-Age=7200; Path=/; Secure"})
     print(f"response.var_cookies:{response.var_cookies}")
 
     #hash the auth token and update the users DB
@@ -686,7 +686,7 @@ def get_logout_route(request, handler):
         user_collection.update_one({"auth_token": hash_auth_token}, {"$set": {"auth_token": ""}})
 
 
-    response.cookies({"auth_token":"L; Max-Age=0"})
+    response.cookies({"auth_token":"L; Max-Age=0; Secure"})
 
     response.set_status(302,"Found")
     response.headers({"Location":"/"})
@@ -925,7 +925,7 @@ def code_for_access_code_github_route(request, handler):
 
 
     # add a cookie that is our auth token with the HttpOnly and max age directive
-    response.cookies({"auth_token": auth_token + "; HttpOnly; Max-Age=7200; Path=/"})
+    response.cookies({"auth_token": auth_token + "; HttpOnly; Max-Age=7200; Path=/; Secure"})
     # delete the session cookie now that we are authenticated
     response.cookies({"session": "L; Max-Age=0"})
     response.set_status(302, "Found")

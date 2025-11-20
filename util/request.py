@@ -25,6 +25,8 @@ class Request:
         #print(f"request headers: {request_headers}")
 
         #split the 2 spaces in request line
+        print(f"REQUEST_LINE:{request_line}")
+        print(f"REQUEST_:{request}")
         method,path,http_v = request_line.split(' ')
         #print(f"method: {(method)}    path: {(path)}    http: {(http_v)}")
 

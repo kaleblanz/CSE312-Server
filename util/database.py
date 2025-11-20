@@ -24,6 +24,8 @@ video_collection = db['videos']
 
 drawingBoard_collection = db['drawing_board']
 
+#video_collection.delete_many({})
+
 
 
 class Deez():
